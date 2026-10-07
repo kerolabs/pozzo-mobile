@@ -3,7 +3,8 @@ package pe.kerolabs.pozzo.features.iam.domain
 import java.time.Instant
 
 /**
- * The member signed in: the name the group sees, the phone and the visual theme.
+ * The member signed in: the name the group sees, the phone, the visual theme and the contact data only
+ * the member sees, the Yape or Plin number (nine digits) and a backup email.
  */
 data class Profile(
     val accountId: String,
@@ -11,6 +12,8 @@ data class Profile(
     val displayName: String,
     val photoUrl: String?,
     val theme: String,
+    val walletNumber: String?,
+    val backupEmail: String?,
 ) {
     val firstName: String get() = displayName.trim().substringBefore(' ')
 }
@@ -47,6 +50,9 @@ sealed interface Verification {
  */
 object PhoneNumbers {
     fun isValid(digits: String): Boolean = digits.length == 9 && digits.first() == '9' && digits.all(Char::isDigit)
+
+    /** "999000123" as "999 000 123". */
+    fun grouped(digits: String): String = digits.chunked(3).joinToString(" ")
 
     /** "999000123" as "+51 999 000 123". */
     fun display(phone: String): String {

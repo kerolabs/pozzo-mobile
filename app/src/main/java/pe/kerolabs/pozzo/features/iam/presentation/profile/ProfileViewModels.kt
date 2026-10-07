@@ -8,17 +8,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kerolabs.pozzo.core.network.userMessage
 import pe.kerolabs.pozzo.features.contributions.application.ClearLocalContributionsUseCase
 import pe.kerolabs.pozzo.features.iam.application.GetProfileUseCase
-import pe.kerolabs.pozzo.features.iam.application.ObserveDisplayNameUseCase
 import pe.kerolabs.pozzo.features.iam.application.ObserveThemeUseCase
 import pe.kerolabs.pozzo.features.iam.application.SignOutUseCase
-import pe.kerolabs.pozzo.features.iam.application.UpdateProfileUseCase
+import pe.kerolabs.pozzo.features.iam.application.UpdateBackupEmailUseCase
+import pe.kerolabs.pozzo.features.iam.application.UpdateDisplayNameUseCase
+import pe.kerolabs.pozzo.features.iam.application.UpdateThemeUseCase
+import pe.kerolabs.pozzo.features.iam.application.UpdateWalletNumberUseCase
 import pe.kerolabs.pozzo.features.iam.domain.Profile
 import pe.kerolabs.pozzo.features.iam.domain.ThemePreference
 import pe.kerolabs.pozzo.features.savingsgroups.application.ClearLocalGroupsUseCase
@@ -34,7 +35,9 @@ data class ProfileUiState(
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val getProfile: GetProfileUseCase,
-    private val updateProfile: UpdateProfileUseCase,
+    private val updateDisplayName: UpdateDisplayNameUseCase,
+    private val updateWalletNumber: UpdateWalletNumberUseCase,
+    private val updateBackupEmail: UpdateBackupEmailUseCase,
     private val signOut: SignOutUseCase,
     private val clearLocalGroups: ClearLocalGroupsUseCase,
     private val clearLocalContributions: ClearLocalContributionsUseCase,
@@ -53,11 +56,19 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun rename(displayName: String) {
-        val profile = _state.value.profile ?: return
-        if (displayName.isBlank() || _state.value.isSaving) return
+        if (displayName.isBlank()) return
+        save { updateDisplayName(displayName) }
+    }
+
+    fun saveWalletNumber(digits: String) = save { updateWalletNumber(digits) }
+
+    fun saveBackupEmail(email: String) = save { updateBackupEmail(email) }
+
+    private fun save(update: suspend () -> Result<Profile>) {
+        if (_state.value.profile == null || _state.value.isSaving) return
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true, errorMessage = null) }
-            updateProfile(displayName, ThemePreference.of(profile.theme))
+            update()
                 .onSuccess { updated -> _state.update { it.copy(profile = updated, isSaving = false) } }
                 .onFailure { error -> _state.update { it.copy(isSaving = false, errorMessage = error.userMessage()) } }
         }
@@ -76,8 +87,7 @@ class ProfileViewModel @Inject constructor(
 @HiltViewModel
 class ThemeViewModel @Inject constructor(
     observeTheme: ObserveThemeUseCase,
-    private val observeDisplayName: ObserveDisplayNameUseCase,
-    private val updateProfile: UpdateProfileUseCase,
+    private val updateTheme: UpdateThemeUseCase,
 ) : ViewModel() {
 
     val theme: StateFlow<ThemePreference> =
@@ -89,8 +99,7 @@ class ThemeViewModel @Inject constructor(
     fun choose(theme: ThemePreference) {
         viewModelScope.launch {
             _errorMessage.value = null
-            val name = observeDisplayName().first().orEmpty()
-            updateProfile(name, theme).onFailure { _errorMessage.value = it.userMessage() }
+            updateTheme(theme).onFailure { _errorMessage.value = it.userMessage() }
         }
     }
 }

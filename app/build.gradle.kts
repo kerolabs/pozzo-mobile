@@ -33,7 +33,7 @@ android {
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
 
         // Landing page with the Terms and Conditions and the Privacy Policy; override it with pozzo.landingUrl
-        val landingUrl = localProperties.getProperty("pozzo.landingUrl") ?: "https://pozzo.app/"
+        val landingUrl = localProperties.getProperty("pozzo.landingUrl") ?: "https://kerolabs.github.io/pozzo-landing-page/"
         buildConfigField("String", "LANDING_URL", "\"$landingUrl\"")
     }
 

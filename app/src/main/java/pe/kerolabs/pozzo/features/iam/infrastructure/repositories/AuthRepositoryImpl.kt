@@ -67,14 +67,20 @@ class AuthRepositoryImpl @Inject constructor(
             dto.toDomain()
         }
 
-    override suspend fun updateProfile(displayName: String, theme: ThemePreference): Result<Profile> {
-        // The photo is not edited in the app yet, so the current one is sent back as it is.
-        val current = getProfile().getOrElse { return Result.failure(it) }
-        return apiCall { service.updateProfile(UpdateProfileRequestDto(displayName, current.photoUrl, theme.name)) }
-            .map { dto ->
-                sessionManager.updateProfile(dto.displayName, dto.theme)
-                dto.toDomain()
-            }
+    override suspend fun updateProfile(change: (Profile) -> Profile): Result<Profile> {
+        // The backend replaces the whole profile, so the fields that do not change are sent back as they are.
+        val updated = change(getProfile().getOrElse { return Result.failure(it) })
+        val request = UpdateProfileRequestDto(
+            displayName = updated.displayName,
+            photoUrl = updated.photoUrl,
+            theme = updated.theme,
+            walletNumber = updated.walletNumber?.ifBlank { null },
+            backupEmail = updated.backupEmail?.ifBlank { null },
+        )
+        return apiCall { service.updateProfile(request) }.map { dto ->
+            sessionManager.updateProfile(dto.displayName, dto.theme)
+            dto.toDomain()
+        }
     }
 
     override suspend fun signOut(): Result<Unit> {
@@ -84,5 +90,6 @@ class AuthRepositoryImpl @Inject constructor(
         return result.map { }
     }
 
-    private fun ProfileDto.toDomain() = Profile(accountId, phoneNumber, displayName, photoUrl, theme)
+    private fun ProfileDto.toDomain() =
+        Profile(accountId, phoneNumber, displayName, photoUrl, theme, walletNumber, backupEmail)
 }

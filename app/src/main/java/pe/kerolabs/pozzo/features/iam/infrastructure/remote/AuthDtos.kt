@@ -23,7 +23,13 @@ data class RegisterRequestDto(
 
 data class AuthenticatedDto(val token: String, val expiresAt: String, val profile: ProfileDto)
 
-data class UpdateProfileRequestDto(val displayName: String, val photoUrl: String?, val theme: String)
+data class UpdateProfileRequestDto(
+    val displayName: String,
+    val photoUrl: String?,
+    val theme: String,
+    val walletNumber: String?,
+    val backupEmail: String?,
+)
 
 data class ProfileDto(
     val accountId: String,
@@ -31,4 +37,6 @@ data class ProfileDto(
     val displayName: String,
     val photoUrl: String?,
     val theme: String,
+    val walletNumber: String?,
+    val backupEmail: String?,
 )

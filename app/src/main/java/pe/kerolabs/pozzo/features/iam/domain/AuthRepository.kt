@@ -21,7 +21,8 @@ interface AuthRepository {
 
     suspend fun getProfile(): Result<Profile>
 
-    suspend fun updateProfile(displayName: String, theme: ThemePreference): Result<Profile>
+    /** Reads the current profile, applies [change] and saves the result. */
+    suspend fun updateProfile(change: (Profile) -> Profile): Result<Profile>
 
     suspend fun signOut(): Result<Unit>
 }

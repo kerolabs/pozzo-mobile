@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kerolabs.pozzo.core.network.userMessage
+import pe.kerolabs.pozzo.features.iam.application.GetProfileUseCase
 import pe.kerolabs.pozzo.features.iam.domain.PhoneNumbers
 import pe.kerolabs.pozzo.features.savingsgroups.application.CreateGroupUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Destination
@@ -66,10 +67,20 @@ data class CreateGroupUiState(
 @HiltViewModel
 class CreateGroupViewModel @Inject constructor(
     private val createGroup: CreateGroupUseCase,
+    private val getProfile: GetProfileUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CreateGroupUiState())
     val state: StateFlow<CreateGroupUiState> = _state.asStateFlow()
+
+    init {
+        // The Yape or Plin number of the profile is offered as the destination; the organizer can change it.
+        viewModelScope.launch {
+            getProfile().getOrNull()?.walletNumber?.let { number ->
+                _state.update { if (it.destinationPhone.isEmpty()) it.copy(destinationPhone = number) else it }
+            }
+        }
+    }
 
     fun onNameChange(value: String) = _state.update { it.copy(name = value.take(NewGroup.NAME_MAX_LENGTH)) }
 
