@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoLogo
 import pe.kerolabs.pozzo.features.iam.presentation.navigation.IamNavGraphRoute
 import pe.kerolabs.pozzo.features.iam.presentation.navigation.iamNavGraph
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.JoinCodeRoute
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.SavingsGroupsNavGraphRoute
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.savingsGroupsNavGraph
 
@@ -62,8 +63,9 @@ fun AppNavHost(navController: NavHostController, sessionViewModel: SessionViewMo
             startDestination = startDestination,
             modifier = Modifier.padding(padding),
         ) {
-            iamNavGraph(navController) {
+            iamNavGraph(navController) { joinAfterSignIn ->
                 navController.navigate(SavingsGroupsNavGraphRoute) { popUpTo(0) }
+                if (joinAfterSignIn) navController.navigate(JoinCodeRoute)
             }
             savingsGroupsNavGraph(navController) { feature ->
                 scope.launch { snackbar.showSnackbar("$feature estará disponible muy pronto.") }
