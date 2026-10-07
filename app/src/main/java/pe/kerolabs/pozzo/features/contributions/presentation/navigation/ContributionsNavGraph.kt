@@ -5,6 +5,8 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
+import pe.kerolabs.pozzo.features.contributions.presentation.mycontributions.MyContributionsScreen
+import pe.kerolabs.pozzo.features.contributions.presentation.mycontributions.TurnCalendarScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.organizer.CashScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.organizer.CoverScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.organizer.CycleClosedScreen
@@ -36,6 +38,12 @@ data class CoverRoute(val groupId: String)
 data class DeliverRoute(val groupId: String)
 
 @Serializable
+data class MyContributionsRoute(val groupId: String)
+
+@Serializable
+data class TurnCalendarRoute(val groupId: String)
+
+@Serializable
 data class CycleClosedRoute(val groupName: String, val totalTurns: Int, val potAmount: String)
 
 /**
@@ -58,11 +66,28 @@ fun NavGraphBuilder.contributionsNavGraph(
             onCover = { navController.navigate(CoverRoute(it)) },
             onDeliver = { navController.navigate(DeliverRoute(it)) },
             onGroupDetail = onGroupDetail,
+            onCalendar = { navController.navigate(TurnCalendarRoute(it)) },
         )
     }
 
-    composable<RegisterContributionRoute> {
-        RegisterContributionScreen(onClose = { navController.popBackStack() })
+    composable<RegisterContributionRoute> { entry ->
+        val groupId = entry.toRoute<RegisterContributionRoute>().groupId
+        RegisterContributionScreen(
+            onClose = { navController.popBackStack() },
+            onMyContributions = {
+                navController.navigate(MyContributionsRoute(groupId)) {
+                    popUpTo<RegisterContributionRoute> { inclusive = true }
+                }
+            },
+        )
+    }
+
+    composable<MyContributionsRoute> {
+        MyContributionsScreen(onBack = { navController.popBackStack() })
+    }
+
+    composable<TurnCalendarRoute> {
+        TurnCalendarScreen(onBack = { navController.popBackStack() })
     }
 
     composable<ReviewsRoute> { entry ->

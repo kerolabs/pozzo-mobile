@@ -21,6 +21,28 @@ class GetPotStateUseCase @Inject constructor(private val repository: Contributio
         }
 }
 
+/**
+ * K1: the cycle of a group and every period opened so far, to see who contributed in each one.
+ */
+class GetCycleHistoryUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(groupId: String): Result<Pair<Cycle, List<Period>>> =
+        repository.getCycleOfGroup(groupId).mapCatching { cycle ->
+            cycle to repository.getPeriods(cycle.id).getOrThrow()
+        }
+}
+
+class GetCycleOfGroupUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(groupId: String) = repository.getCycleOfGroup(groupId)
+}
+
+class GetMyContributionsUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(groupId: String) = repository.getMyContributions(groupId)
+}
+
+class ClearLocalContributionsUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke() = repository.clearLocalContributions()
+}
+
 class ReadReceiptUseCase @Inject constructor(private val reader: ReceiptReader) {
     suspend operator fun invoke(imageUri: Uri) = reader.read(imageUri)
 }

@@ -6,6 +6,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import pe.kerolabs.pozzo.core.database.PozzoDatabase
+import pe.kerolabs.pozzo.features.contributions.infrastructure.local.MyContributionsDao
 import pe.kerolabs.pozzo.features.contributions.domain.ContributionRepository
 import pe.kerolabs.pozzo.features.contributions.domain.ReceiptReader
 import pe.kerolabs.pozzo.features.contributions.infrastructure.ocr.MlKitReceiptReader
@@ -21,6 +23,9 @@ object ContributionsApiModule {
     @Singleton
     fun provideContributionsService(retrofit: Retrofit): ContributionsService =
         retrofit.create(ContributionsService::class.java)
+
+    @Provides
+    fun provideMyContributionsDao(database: PozzoDatabase): MyContributionsDao = database.myContributionsDao()
 }
 
 @Module

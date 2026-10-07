@@ -75,6 +75,23 @@ data class ContributionDto(
     val registeredAt: String,
 )
 
+data class MyContributionsDto(
+    val cycleId: String,
+    val groupName: String,
+    val contributedAmount: BigDecimal,
+    val pendingAmount: BigDecimal,
+    val periods: List<MyPeriodContributionDto>,
+)
+
+data class MyPeriodContributionDto(
+    val periodId: String,
+    val turnNumber: Int,
+    val cutoffDate: String,
+    val amount: BigDecimal,
+    val status: String,
+    val contribution: ContributionDto?,
+)
+
 data class RegisterCashRequestDto(val membershipId: String, val amount: BigDecimal, val receivedOn: String)
 
 data class RegisterCoverageRequestDto(val membershipId: String, val coveredByMembershipId: String)

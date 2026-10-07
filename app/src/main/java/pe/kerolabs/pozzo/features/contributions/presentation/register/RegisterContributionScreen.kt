@@ -101,6 +101,7 @@ import pe.kerolabs.pozzo.features.contributions.presentation.common.inconsistenc
 @Composable
 fun RegisterContributionScreen(
     onClose: () -> Unit,
+    onMyContributions: () -> Unit,
     viewModel: RegisterContributionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -138,7 +139,7 @@ fun RegisterContributionScreen(
                 RegisterStep.INSTRUCTIONS -> InstructionsStep(state, onNext = { viewModel.goTo(RegisterStep.CAPTURE) })
                 RegisterStep.CAPTURE -> CaptureStep(state, viewModel)
                 RegisterStep.REVIEW -> ReviewStep(state, viewModel)
-                RegisterStep.RESULT -> state.result?.let { ResultStep(it, state, onClose) }
+                RegisterStep.RESULT -> state.result?.let { ResultStep(it, state, onClose, onMyContributions) }
             }
         }
     }
@@ -375,6 +376,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.ResultStep(
     contribution: Contribution,
     state: RegisterUiState,
     onClose: () -> Unit,
+    onMyContributions: () -> Unit,
 ) {
     val status = PozzoThemeExtras.statusColors
     val colors = MaterialTheme.colorScheme
@@ -434,5 +436,13 @@ private fun androidx.compose.foundation.layout.ColumnScope.ResultStep(
         }
     }
     PozzoPrimaryButton(text = if (validated) "Ver el estado del pozo" else "Entendido", onClick = onClose)
-    Spacer(Modifier.height(8.dp))
+    if (validated) {
+        PozzoTextButton(
+            text = "Ver mis aportes",
+            onClick = onMyContributions,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
+    } else {
+        Spacer(Modifier.height(8.dp))
+    }
 }
