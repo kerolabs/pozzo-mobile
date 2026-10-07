@@ -1,5 +1,10 @@
 import java.util.Properties
 
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -23,18 +28,31 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Base URL of the Pozzo RESTful services; override it in local.properties with pozzo.apiBaseUrl
-        val localProperties = Properties().apply {
-            val file = rootProject.file("local.properties")
-            if (file.exists()) file.inputStream().use { load(it) }
-        }
-        val apiBaseUrl = localProperties.getProperty("pozzo.apiBaseUrl")
-            ?: "https://pozzo-backend.onrender.com/api/v1/"
-        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
-
         // Landing page with the Terms and Conditions and the Privacy Policy; override it with pozzo.landingUrl
         val landingUrl = localProperties.getProperty("pozzo.landingUrl") ?: "https://kerolabs.github.io/pozzo-landing-page/"
         buildConfigField("String", "LANDING_URL", "\"$landingUrl\"")
+    }
+
+    // Which backend the app talks to; switch it in Android Studio > Build Variants.
+    flavorDimensions += "backend"
+    productFlavors {
+        // The deployed backend: for real phones, the demo and the delivered APK.
+        create("render") {
+            dimension = "backend"
+            isDefault = true
+            resValue("string", "app_name", "Pozzo")
+            buildConfigField("String", "API_BASE_URL", "\"https://pozzo-backend.onrender.com/api/v1/\"")
+        }
+        // A backend running on this computer. It installs next to the other one as "Pozzo Local".
+        // The emulator, or a phone on USB, reaches it after "adb reverse tcp:8080 tcp:8080".
+        create("local") {
+            dimension = "backend"
+            applicationIdSuffix = ".local"
+            versionNameSuffix = "-local"
+            resValue("string", "app_name", "Pozzo Local")
+            val localApiBaseUrl = localProperties.getProperty("pozzo.localApiBaseUrl") ?: "http://localhost:8080/api/v1/"
+            buildConfigField("String", "API_BASE_URL", "\"$localApiBaseUrl\"")
+        }
     }
 
     buildTypes {
@@ -51,6 +69,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        resValues = true
     }
 }
 
