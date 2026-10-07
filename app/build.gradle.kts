@@ -82,6 +82,9 @@ dependencies {
     implementation(libs.room.runtime)
     ksp(libs.room.compiler)
 
+    // ML Kit: reads the receipts on the device
+    implementation(libs.mlkit.text.recognition)
+
     // Data Store
     implementation(libs.androidx.datastore.preferences)
 
