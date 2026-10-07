@@ -31,6 +31,10 @@ android {
         val apiBaseUrl = localProperties.getProperty("pozzo.apiBaseUrl")
             ?: "https://pozzo-backend.onrender.com/api/v1/"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+
+        // Landing page with the Terms and Conditions and the Privacy Policy; override it with pozzo.landingUrl
+        val landingUrl = localProperties.getProperty("pozzo.landingUrl") ?: "https://pozzo.app/"
+        buildConfigField("String", "LANDING_URL", "\"$landingUrl\"")
     }
 
     buildTypes {

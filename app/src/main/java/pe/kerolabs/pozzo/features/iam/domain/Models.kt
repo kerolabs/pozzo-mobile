@@ -15,6 +15,15 @@ data class Profile(
     val firstName: String get() = displayName.trim().substringBefore(' ')
 }
 
+/** I2: how the app looks; SYSTEM follows the phone. */
+enum class ThemePreference {
+    SYSTEM, LIGHT, DARK;
+
+    companion object {
+        fun of(value: String?): ThemePreference = entries.firstOrNull { it.name == value } ?: SYSTEM
+    }
+}
+
 /**
  * A code sent by SMS: until when it is valid and from when another one can be requested.
  */

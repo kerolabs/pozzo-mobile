@@ -4,16 +4,19 @@ import android.os.Build
 import java.time.Instant
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import pe.kerolabs.pozzo.core.network.apiCall
 import pe.kerolabs.pozzo.features.iam.domain.AuthRepository
 import pe.kerolabs.pozzo.features.iam.domain.CodeRequest
 import pe.kerolabs.pozzo.features.iam.domain.Profile
+import pe.kerolabs.pozzo.features.iam.domain.ThemePreference
 import pe.kerolabs.pozzo.features.iam.domain.Verification
 import pe.kerolabs.pozzo.features.iam.infrastructure.local.SessionManager
 import pe.kerolabs.pozzo.features.iam.infrastructure.remote.AuthService
 import pe.kerolabs.pozzo.features.iam.infrastructure.remote.ProfileDto
 import pe.kerolabs.pozzo.features.iam.infrastructure.remote.RegisterRequestDto
 import pe.kerolabs.pozzo.features.iam.infrastructure.remote.RequestCodeRequestDto
+import pe.kerolabs.pozzo.features.iam.infrastructure.remote.UpdateProfileRequestDto
 import pe.kerolabs.pozzo.features.iam.infrastructure.remote.VerifyCodeRequestDto
 
 class AuthRepositoryImpl @Inject constructor(
@@ -27,6 +30,8 @@ class AuthRepositoryImpl @Inject constructor(
 
     override val displayName: Flow<String?> = sessionManager.displayName
 
+    override val theme: Flow<ThemePreference> = sessionManager.theme.map(ThemePreference::of)
+
     override suspend fun requestCode(phoneNumber: String): Result<CodeRequest> =
         apiCall { service.requestCode(RequestCodeRequestDto(phoneNumber)) }.map { dto ->
             // The backend answers in E.164; the app keeps the nine digits it sends back to verify.
@@ -39,7 +44,7 @@ class AuthRepositoryImpl @Inject constructor(
             if (dto.registrationRequired || session == null) {
                 Verification.RegistrationRequired(phoneNumber, dto.registrationToken.orEmpty())
             } else {
-                sessionManager.save(session.token, session.profile.displayName)
+                sessionManager.save(session.token, session.profile.displayName, session.profile.theme)
                 Verification.SignedIn(session.profile.toDomain())
             }
         }
@@ -52,15 +57,25 @@ class AuthRepositoryImpl @Inject constructor(
         apiCall {
             service.register(RegisterRequestDto(registrationToken, displayName, null, termsAccepted, deviceLabel))
         }.map { dto ->
-            sessionManager.save(dto.token, dto.profile.displayName)
+            sessionManager.save(dto.token, dto.profile.displayName, dto.profile.theme)
             dto.profile.toDomain()
         }
 
     override suspend fun getProfile(): Result<Profile> =
         apiCall { service.getProfile() }.map { dto ->
-            sessionManager.updateDisplayName(dto.displayName)
+            sessionManager.updateProfile(dto.displayName, dto.theme)
             dto.toDomain()
         }
+
+    override suspend fun updateProfile(displayName: String, theme: ThemePreference): Result<Profile> {
+        // The photo is not edited in the app yet, so the current one is sent back as it is.
+        val current = getProfile().getOrElse { return Result.failure(it) }
+        return apiCall { service.updateProfile(UpdateProfileRequestDto(displayName, current.photoUrl, theme.name)) }
+            .map { dto ->
+                sessionManager.updateProfile(dto.displayName, dto.theme)
+                dto.toDomain()
+            }
+    }
 
     override suspend fun signOut(): Result<Unit> {
         // The session is closed on the phone even if the backend cannot be reached.

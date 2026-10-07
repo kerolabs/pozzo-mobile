@@ -23,6 +23,8 @@ data class RegisterRequestDto(
 
 data class AuthenticatedDto(val token: String, val expiresAt: String, val profile: ProfileDto)
 
+data class UpdateProfileRequestDto(val displayName: String, val photoUrl: String?, val theme: String)
+
 data class ProfileDto(
     val accountId: String,
     val phoneNumber: String,
