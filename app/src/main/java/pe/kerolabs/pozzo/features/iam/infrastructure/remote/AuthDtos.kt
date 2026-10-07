@@ -1,0 +1,32 @@
+package pe.kerolabs.pozzo.features.iam.infrastructure.remote
+
+data class RequestCodeRequestDto(val phoneNumber: String)
+
+data class CodeRequestedDto(val phoneNumber: String, val expiresAt: String, val resendAvailableAt: String)
+
+data class VerifyCodeRequestDto(val phoneNumber: String, val code: String, val deviceLabel: String?)
+
+data class VerificationDto(
+    val registrationRequired: Boolean,
+    val session: AuthenticatedDto?,
+    val registrationToken: String?,
+    val registrationTokenExpiresAt: String?,
+)
+
+data class RegisterRequestDto(
+    val registrationToken: String,
+    val displayName: String,
+    val photoUrl: String?,
+    val termsAccepted: Boolean,
+    val deviceLabel: String?,
+)
+
+data class AuthenticatedDto(val token: String, val expiresAt: String, val profile: ProfileDto)
+
+data class ProfileDto(
+    val accountId: String,
+    val phoneNumber: String,
+    val displayName: String,
+    val photoUrl: String?,
+    val theme: String,
+)
