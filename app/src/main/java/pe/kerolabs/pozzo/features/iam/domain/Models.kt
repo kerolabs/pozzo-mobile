@@ -37,6 +37,11 @@ data class CodeRequest(
 )
 
 /**
+ * A recovery code was requested for a backup email; it only arrives if an account has that email.
+ */
+data class RecoveryCodeRequest(val email: String, val expiresAt: Instant, val resendAvailableAt: Instant)
+
+/**
  * What happens after a correct code: a registered number opens a session; a new one must complete
  * the registration with the token it received.
  */

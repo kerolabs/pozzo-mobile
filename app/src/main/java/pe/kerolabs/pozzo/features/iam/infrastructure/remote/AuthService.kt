@@ -20,9 +20,27 @@ interface AuthService {
     @POST("auth/sign-out")
     suspend fun signOut(): Response<Unit>
 
+    @POST("auth/recovery/codes")
+    suspend fun requestRecoveryCode(@Body request: RecoveryEmailRequestDto): Response<RecoveryCodeRequestedDto>
+
+    @POST("auth/recovery/codes/verify")
+    suspend fun verifyRecoveryCode(@Body request: VerifyRecoveryCodeRequestDto): Response<RecoveryTokenDto>
+
+    @POST("auth/recovery/phone-number/codes")
+    suspend fun requestRecoveryPhoneCode(@Body request: RecoveryPhoneCodeRequestDto): Response<CodeRequestedDto>
+
+    @POST("auth/recovery/phone-number")
+    suspend fun recoverAccount(@Body request: RecoverAccountRequestDto): Response<AuthenticatedDto>
+
     @GET("members/me/profile")
     suspend fun getProfile(): Response<ProfileDto>
 
     @PUT("members/me/profile")
     suspend fun updateProfile(@Body request: UpdateProfileRequestDto): Response<ProfileDto>
+
+    @POST("members/me/phone-number/codes")
+    suspend fun requestPhoneChangeCode(@Body request: RequestCodeRequestDto): Response<CodeRequestedDto>
+
+    @PUT("members/me/phone-number")
+    suspend fun changePhoneNumber(@Body request: ChangePhoneNumberRequestDto): Response<ProfileDto>
 }

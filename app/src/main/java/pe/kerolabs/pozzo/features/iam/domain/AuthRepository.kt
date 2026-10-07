@@ -25,4 +25,21 @@ interface AuthRepository {
     suspend fun updateProfile(change: (Profile) -> Profile): Result<Profile>
 
     suspend fun signOut(): Result<Unit>
+
+    /** Recovery, step 1: a code to the backup email. The answer is the same if no account has it. */
+    suspend fun requestRecoveryCode(email: String): Result<RecoveryCodeRequest>
+
+    /** Recovery, step 2: returns the token that allows linking a new number. */
+    suspend fun verifyRecoveryCode(email: String, code: String): Result<String>
+
+    /** Recovery, step 3: an SMS code to the new number. */
+    suspend fun requestRecoveryPhoneCode(recoveryToken: String, phoneNumber: String): Result<CodeRequest>
+
+    /** Recovery, step 4: links the new number, closes the sessions of the lost phone and opens one here. */
+    suspend fun recoverAccount(recoveryToken: String, phoneNumber: String, code: String): Result<Profile>
+
+    /** Change of number with the session open: an SMS code to the new number. */
+    suspend fun requestPhoneChangeCode(phoneNumber: String): Result<CodeRequest>
+
+    suspend fun changePhoneNumber(phoneNumber: String, code: String): Result<Profile>
 }
