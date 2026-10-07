@@ -6,6 +6,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navigation
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
+import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupStatus
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.creategroup.CreateGroupScreen
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.groupdetail.GroupDetailScreen
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.invitation.InvitationScreen
@@ -72,7 +73,7 @@ data class StartGroupRoute(val groupId: String)
 /**
  * The groups of the member: the list, creating and joining a group, its detail, its turns and its start.
  */
-fun NavGraphBuilder.savingsGroupsNavGraph(navController: NavController) {
+fun NavGraphBuilder.savingsGroupsNavGraph(navController: NavController, onOpenPot: (groupId: String) -> Unit) {
 
     val openDetail: (String) -> Unit = { groupId ->
         navController.navigate(GroupDetailRoute(groupId)) { popUpTo<MyGroupsRoute>() }
@@ -85,7 +86,9 @@ fun NavGraphBuilder.savingsGroupsNavGraph(navController: NavController) {
             MyGroupsScreen(
                 onCreateGroup = { navController.navigate(CreateGroupRoute) },
                 onJoinWithCode = { navController.navigate(JoinCodeRoute) },
-                onOpenGroup = { group -> navController.navigate(GroupDetailRoute(group.id)) },
+                onOpenGroup = { group ->
+                    if (group.status == GroupStatus.STARTED) onOpenPot(group.id) else navController.navigate(GroupDetailRoute(group.id))
+                },
             )
         }
 
@@ -145,6 +148,7 @@ fun NavGraphBuilder.savingsGroupsNavGraph(navController: NavController) {
                 onBack = { navController.popBackStack() },
                 onAssignTurns = { groupId, seats -> navController.navigate(AssignTurnsRoute(groupId, seats)) },
                 onStartGroup = { groupId -> navController.navigate(StartGroupRoute(groupId)) },
+                onOpenPot = onOpenPot,
                 onShowInvitation = { groupName, invitation ->
                     val groupId = it.toRoute<GroupDetailRoute>().groupId
                     navController.navigate(InvitationRoute(groupId, groupName, invitation.code, invitation.link, fromDetail = true))
