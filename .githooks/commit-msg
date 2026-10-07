@@ -1,0 +1,46 @@
+#!/bin/sh
+# Checks the commit message before the commit is created.
+# Enabled with:  git config core.hooksPath .githooks
+# The root build.gradle.kts does this on every Gradle sync.
+#
+# Two rules, the same ones commit-policy.yml enforces on the server:
+#   1. Conventional Commits: "type: description", in English.
+#   2. Commits are authored by team members: trailers added by tools
+#      (Co-authored-by, Generated with) are removed.
+
+message="$1"
+
+types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+subject="^($types)(\([a-z0-9._/-]+\))?!?: [^ ].+"
+trailer='^[[:space:]]*(Co-authored-by|Signed-off-by):.*(claude|copilot|chatgpt|openai|anthropic|gemini|cursor|codeium|devin|tabnine)|Generated with.*(Claude|Copilot|ChatGPT|Gemini|Cursor)'
+
+first=$(grep -v '^#' "$message" | grep -m1 .)
+
+case "$first" in
+  Merge\ *|Revert\ \"*) exit 0 ;;
+esac
+
+if ! printf '%s\n' "$first" | grep -qE "$subject"; then
+  echo ""
+  echo "COMMIT REJECTED: the message does not follow Conventional Commits."
+  echo ""
+  echo "  Got:      $first"
+  echo "  Expected: <type>: <description>     e.g.  feat: add the contribution status screen"
+  echo "  Types:    feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+  echo ""
+  exit 1
+fi
+
+if grep -qiE "$trailer" "$message" || grep -q '🤖' "$message"; then
+  echo ""
+  echo "COMMIT REJECTED: the message carries a trailer added by a tool."
+  echo ""
+  echo "Offending lines:"
+  grep -inE "$trailer|🤖" "$message" | sed 's/^/  /'
+  echo ""
+  echo "Commits are authored by team members. Remove those lines and commit again."
+  echo ""
+  exit 1
+fi
+
+exit 0
