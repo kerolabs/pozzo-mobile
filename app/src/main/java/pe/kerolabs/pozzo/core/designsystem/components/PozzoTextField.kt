@@ -11,6 +11,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 
 /**
@@ -29,6 +30,7 @@ fun PozzoTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     singleLine: Boolean = true,
     enabled: Boolean = true,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
@@ -47,6 +49,7 @@ fun PozzoTextField(
             keyboardOptions = keyboardOptions,
             singleLine = singleLine,
             enabled = enabled,
+            visualTransformation = visualTransformation,
             shape = MaterialTheme.shapes.large,
             textStyle = MaterialTheme.typography.bodyLarge,
             colors = OutlinedTextFieldDefaults.colors(

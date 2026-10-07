@@ -51,4 +51,16 @@ interface SavingsGroupRepository {
 
     /** Removes the local copy, e.g. when the member signs out. */
     suspend fun clearLocalGroups()
+
+    /** Creates a group with the requester as organizer. */
+    suspend fun createGroup(group: NewGroup): Result<SavingsGroup>
+
+    /** Generates a new invitation for a group of the organizer; the previous one stops working. */
+    suspend fun generateInvitation(groupId: String): Result<Invitation>
+
+    /** The group behind an invitation code, before joining it. */
+    suspend fun previewInvitation(code: String): Result<GroupPreview>
+
+    /** Joins the group of an invitation code. */
+    suspend fun joinGroup(code: String): Result<SavingsGroup>
 }

@@ -25,6 +25,10 @@ fun formatSoles(amount: BigDecimal): String {
 fun formatShortDate(date: LocalDate): String =
     DateTimeFormatter.ofPattern("d 'de' MMM", Spanish).format(date).removeSuffix(".")
 
+/** "5 nov 2026". */
+fun formatMediumDate(date: LocalDate): String =
+    DateTimeFormatter.ofPattern("d MMM yyyy", Spanish).format(date).replace(".", "")
+
 /** "5 de enero de 2027". */
 fun formatLongDate(date: LocalDate): String =
     DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", Spanish).format(date)
