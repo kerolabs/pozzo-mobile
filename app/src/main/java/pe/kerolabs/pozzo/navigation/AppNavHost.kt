@@ -17,9 +17,13 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoLogo
+import pe.kerolabs.pozzo.features.contributions.presentation.navigation.PotRoute
+import pe.kerolabs.pozzo.features.contributions.presentation.navigation.contributionsNavGraph
 import pe.kerolabs.pozzo.features.iam.presentation.navigation.IamNavGraphRoute
 import pe.kerolabs.pozzo.features.iam.presentation.navigation.iamNavGraph
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.GroupDetailRoute
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.JoinCodeRoute
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.MyGroupsRoute
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.SavingsGroupsNavGraphRoute
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.savingsGroupsNavGraph
 
@@ -53,6 +57,11 @@ fun AppNavHost(navController: NavHostController, sessionViewModel: SessionViewMo
             navController.navigate(SavingsGroupsNavGraphRoute) { popUpTo(0) }
             if (joinAfterSignIn) navController.navigate(JoinCodeRoute)
         }
-        savingsGroupsNavGraph(navController)
+        savingsGroupsNavGraph(navController, onOpenPot = { navController.navigate(PotRoute(it)) })
+        contributionsNavGraph(
+            navController,
+            onGroupDetail = { navController.navigate(GroupDetailRoute(it)) { launchSingleTop = true } },
+            onHome = { navController.navigate(MyGroupsRoute) { popUpTo<MyGroupsRoute> { inclusive = true } } },
+        )
     }
 }

@@ -87,6 +87,7 @@ fun GroupDetailScreen(
     onBack: () -> Unit,
     onAssignTurns: (groupId: String, seats: Int) -> Unit,
     onStartGroup: (groupId: String) -> Unit,
+    onOpenPot: (groupId: String) -> Unit,
     onShowInvitation: (groupName: String, invitation: Invitation) -> Unit,
     viewModel: GroupDetailViewModel = hiltViewModel(),
 ) {
@@ -165,7 +166,11 @@ fun GroupDetailScreen(
             }
         },
         bottomBar = {
-            if (canEdit && detail != null) {
+            if (detail != null && detail.group.status == GroupStatus.STARTED) {
+                Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    PozzoPrimaryButton(text = "Ver el pozo", onClick = { onOpenPot(viewModel.groupId) })
+                }
+            } else if (canEdit && detail != null) {
                 MainAction(
                     detail = detail,
                     onInvite = viewModel::invite,
