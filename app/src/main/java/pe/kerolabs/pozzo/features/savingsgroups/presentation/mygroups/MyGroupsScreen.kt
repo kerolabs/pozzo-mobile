@@ -149,6 +149,9 @@ private fun Header(firstName: String, displayName: String, onSignOut: () -> Unit
             InitialsAvatar(
                 name = displayName.ifBlank { "?" },
                 modifier = Modifier.clip(CircleShape).clickable { menuOpen = true },
+                size = 56.dp,
+                background = MaterialTheme.colorScheme.primaryContainer,
+                content = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(

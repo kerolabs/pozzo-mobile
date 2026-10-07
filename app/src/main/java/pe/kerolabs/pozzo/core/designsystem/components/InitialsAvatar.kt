@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import pe.kerolabs.pozzo.core.designsystem.theme.PozzoThemeExtras
 
 /**
  * Circle with the initials of a member, e.g. "AW" for Anna Weber.
@@ -21,15 +22,31 @@ fun InitialsAvatar(
     name: String,
     modifier: Modifier = Modifier,
     size: Dp = 44.dp,
-    background: Color = MaterialTheme.colorScheme.primaryContainer,
-    content: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    background: Color? = null,
+    content: Color? = null,
 ) {
+    // Without explicit colors each person keeps the same color everywhere, picked from their name.
+    val (bg, fg) = if (background != null && content != null) background to content else avatarColors(name)
     Box(
-        modifier = modifier.size(size).background(background, CircleShape),
+        modifier = modifier.size(size).background(bg, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(initialsOf(name), style = MaterialTheme.typography.titleMedium, color = content)
+        Text(initialsOf(name), style = MaterialTheme.typography.titleMedium, color = fg)
     }
+}
+
+@Composable
+private fun avatarColors(name: String): Pair<Color, Color> {
+    val colors = MaterialTheme.colorScheme
+    val status = PozzoThemeExtras.statusColors
+    val palette = listOf(
+        colors.primaryContainer to colors.onPrimaryContainer,
+        colors.secondaryContainer to colors.onSecondaryContainer,
+        colors.tertiaryContainer to colors.onTertiaryContainer,
+        status.successContainer to status.onSuccessContainer,
+        colors.surfaceContainerHighest to colors.onSurfaceVariant,
+    )
+    return palette[Math.floorMod(name.trim().lowercase().hashCode(), palette.size)]
 }
 
 fun initialsOf(name: String): String =

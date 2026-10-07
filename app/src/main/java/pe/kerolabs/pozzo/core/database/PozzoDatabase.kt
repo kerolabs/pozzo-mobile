@@ -9,7 +9,7 @@ import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.local.GroupEntity
  * Local storage of the app (Room): a copy of the member's groups to open them without connection.
  * Each bounded context adds its own tables and DAO here.
  */
-@Database(entities = [GroupEntity::class], version = 1, exportSchema = false)
+@Database(entities = [GroupEntity::class], version = 2, exportSchema = false)
 abstract class PozzoDatabase : RoomDatabase() {
     abstract fun groupDao(): GroupDao
 }

@@ -39,6 +39,31 @@ data class CreateGroupRequestDto(
     val destination: DestinationDto?,
 )
 
+data class MemberDto(
+    val id: String,
+    val displayName: String,
+    val kind: String,
+    val status: String,
+    val organizer: Boolean,
+    val me: Boolean,
+    val phoneNumber: String?,
+    val turnNumber: Int?,
+)
+
+data class AddManualMemberRequestDto(val displayName: String, val phoneNumber: String?)
+
+data class TurnCalendarDto(
+    val method: String?,
+    val drawSeed: String?,
+    val assignedAt: String?,
+    val potAmount: BigDecimal,
+    val turns: List<TurnDto>,
+)
+
+data class TurnDto(val turnNumber: Int, val membershipId: String, val displayName: String, val cutoffDate: String, val me: Boolean)
+
+data class AgreedTurnsRequestDto(val order: List<String>)
+
 data class InvitationDto(val code: String, val link: String, val expiresAt: String)
 
 data class GroupPreviewDto(

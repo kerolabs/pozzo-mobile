@@ -72,7 +72,7 @@ fun JoinedScreen(groupName: String, organizerName: String, membersCount: Int, se
                 }
             }
             Spacer(Modifier.weight(1.5f))
-            PozzoPrimaryButton(text = "Ver mis juntas", onClick = onDone)
+            PozzoPrimaryButton(text = "Ver mi junta", onClick = onDone)
         }
     }
 }
