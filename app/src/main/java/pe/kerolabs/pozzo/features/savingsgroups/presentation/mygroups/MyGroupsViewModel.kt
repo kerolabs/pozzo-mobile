@@ -13,8 +13,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kerolabs.pozzo.core.network.userMessage
 import pe.kerolabs.pozzo.features.iam.application.ObserveDisplayNameUseCase
-import pe.kerolabs.pozzo.features.iam.application.SignOutUseCase
-import pe.kerolabs.pozzo.features.savingsgroups.application.ClearLocalGroupsUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.ObserveMyGroupsUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.RefreshMyGroupsUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.domain.SavingsGroup
@@ -37,8 +35,6 @@ class MyGroupsViewModel @Inject constructor(
     observeMyGroups: ObserveMyGroupsUseCase,
     observeDisplayName: ObserveDisplayNameUseCase,
     private val refreshMyGroups: RefreshMyGroupsUseCase,
-    private val signOut: SignOutUseCase,
-    private val clearLocalGroups: ClearLocalGroupsUseCase,
 ) : ViewModel() {
 
     private val refresh = MutableStateFlow(RefreshState(isRefreshing = true, errorMessage = null, loadedOnce = false))
@@ -77,12 +73,5 @@ class MyGroupsViewModel @Inject constructor(
 
     fun dismissError() {
         refresh.update { it.copy(errorMessage = null) }
-    }
-
-    fun signOut() {
-        viewModelScope.launch {
-            clearLocalGroups()
-            signOut.invoke()
-        }
     }
 }

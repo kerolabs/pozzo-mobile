@@ -1,5 +1,6 @@
 package pe.kerolabs.pozzo.features.contributions.infrastructure.repositories
 
+import com.google.gson.Gson
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -13,14 +14,20 @@ import pe.kerolabs.pozzo.features.contributions.domain.ContributionStatus
 import pe.kerolabs.pozzo.features.contributions.domain.Cycle
 import pe.kerolabs.pozzo.features.contributions.domain.Inconsistency
 import pe.kerolabs.pozzo.features.contributions.domain.MemberContribution
+import pe.kerolabs.pozzo.features.contributions.domain.MyContributions
+import pe.kerolabs.pozzo.features.contributions.domain.MyPeriodContribution
 import pe.kerolabs.pozzo.features.contributions.domain.Period
 import pe.kerolabs.pozzo.features.contributions.domain.PeriodState
 import pe.kerolabs.pozzo.features.contributions.domain.PotDelivery
 import pe.kerolabs.pozzo.features.contributions.domain.ReceiptData
 import pe.kerolabs.pozzo.features.contributions.domain.ReceiptSource
 import pe.kerolabs.pozzo.features.contributions.domain.ReviewDecision
+import pe.kerolabs.pozzo.features.contributions.infrastructure.local.MyContributionsDao
+import pe.kerolabs.pozzo.features.contributions.infrastructure.local.MyContributionsEntity
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ContributionDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ContributionsService
+import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.MyContributionsDto
+import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.PeriodStatusDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ReceiptDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.RegisterCashRequestDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.RegisterCoverageRequestDto
@@ -28,7 +35,10 @@ import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ReviewRequ
 
 class ContributionRepositoryImpl @Inject constructor(
     private val service: ContributionsService,
+    private val myContributionsDao: MyContributionsDao,
 ) : ContributionRepository {
+
+    private val gson = Gson()
 
     override suspend fun getCycleOfGroup(groupId: String): Result<Cycle> =
         apiCall { service.getCycleOfGroup(groupId) }.map { dto ->
@@ -51,37 +61,29 @@ class ContributionRepositoryImpl @Inject constructor(
         }
 
     override suspend fun getCurrentPeriod(cycleId: String): Result<Period> =
-        apiCall { service.getCurrentPeriod(cycleId) }.map { dto ->
-            Period(
-                id = dto.periodId,
-                cycleId = dto.cycleId,
-                groupName = dto.groupName,
-                turnNumber = dto.turnNumber,
-                totalTurns = dto.totalTurns,
-                state = PeriodState.valueOf(dto.status),
-                cutoffDate = LocalDate.parse(dto.cutoffDate),
-                daysToCutoff = dto.daysToCutoff,
-                payoutMembershipId = dto.payoutMembershipId,
-                payoutMemberName = dto.payoutMemberName,
-                contributionAmount = dto.contributionAmount,
-                potAmount = dto.potAmount,
-                collectedAmount = dto.collectedAmount,
-                missingAmount = dto.missingAmount,
-                settledCount = dto.settledCount,
-                membersCount = dto.membersCount,
-                myState = dto.myStatus?.let(ContributionState::valueOf),
-                members = dto.members.map {
-                    MemberContribution(
-                        it.membershipId,
-                        it.displayName,
-                        it.me,
-                        it.collects,
-                        ContributionState.valueOf(it.status),
-                        it.contributionId,
-                    )
-                },
-            )
+        apiCall { service.getCurrentPeriod(cycleId) }.map { it.toDomain() }
+
+    override suspend fun getPeriods(cycleId: String): Result<List<Period>> =
+        apiCall { service.getPeriods(cycleId) }.map { list -> list.map { it.toDomain() } }
+
+    override suspend fun getMyContributions(groupId: String): Result<MyContributions> {
+        val remote = getCycleOfGroup(groupId).mapCatching { cycle ->
+            apiCall { service.getMyContributions(cycle.id) }.getOrThrow()
         }
+        remote.onSuccess { dto ->
+            val now = Instant.now()
+            myContributionsDao.upsert(MyContributionsEntity(groupId, gson.toJson(dto), now.toEpochMilli()))
+            return Result.success(dto.toDomain(now, isOffline = false))
+        }
+        // Without connection the receipts are still there: the last copy kept on the phone.
+        val cached = myContributionsDao.find(groupId) ?: return Result.failure(remote.exceptionOrNull()!!)
+        return runCatching {
+            gson.fromJson(cached.json, MyContributionsDto::class.java)
+                .toDomain(Instant.ofEpochMilli(cached.savedAt), isOffline = true)
+        }
+    }
+
+    override suspend fun clearLocalContributions() = myContributionsDao.deleteAll()
 
     override suspend fun registerContribution(periodId: String, receipt: ReceiptData): Result<Contribution> =
         apiCall {
@@ -121,6 +123,55 @@ class ContributionRepositoryImpl @Inject constructor(
         apiCall { service.deliverPot(periodId) }.map {
             PotDelivery(it.deliveredTurn, it.deliveredAmount, it.cycleStatus == "CLOSED", it.nextTurn)
         }
+
+    private fun PeriodStatusDto.toDomain() = Period(
+        id = periodId,
+        cycleId = cycleId,
+        groupName = groupName,
+        turnNumber = turnNumber,
+        totalTurns = totalTurns,
+        state = PeriodState.valueOf(status),
+        cutoffDate = LocalDate.parse(cutoffDate),
+        daysToCutoff = daysToCutoff,
+        payoutMembershipId = payoutMembershipId,
+        payoutMemberName = payoutMemberName,
+        contributionAmount = contributionAmount,
+        potAmount = potAmount,
+        collectedAmount = collectedAmount,
+        missingAmount = missingAmount,
+        settledCount = settledCount,
+        membersCount = membersCount,
+        myState = myStatus?.let(ContributionState::valueOf),
+        members = members.map {
+            MemberContribution(
+                it.membershipId,
+                it.displayName,
+                it.me,
+                it.collects,
+                ContributionState.valueOf(it.status),
+                it.contributionId,
+            )
+        },
+    )
+
+    private fun MyContributionsDto.toDomain(savedAt: Instant, isOffline: Boolean) = MyContributions(
+        cycleId = cycleId,
+        groupName = groupName,
+        contributedAmount = contributedAmount,
+        pendingAmount = pendingAmount,
+        periods = periods.map {
+            MyPeriodContribution(
+                periodId = it.periodId,
+                turnNumber = it.turnNumber,
+                cutoffDate = LocalDate.parse(it.cutoffDate),
+                amount = it.amount,
+                state = ContributionState.valueOf(it.status),
+                contribution = it.contribution?.toDomain(),
+            )
+        },
+        savedAt = savedAt,
+        isOffline = isOffline,
+    )
 
     private fun ContributionDto.toDomain() = Contribution(
         id = id,

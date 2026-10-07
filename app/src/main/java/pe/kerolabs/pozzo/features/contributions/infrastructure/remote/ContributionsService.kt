@@ -15,6 +15,12 @@ interface ContributionsService {
     @GET("cycles/{cycleId}/periods/current")
     suspend fun getCurrentPeriod(@Path("cycleId") cycleId: String): Response<PeriodStatusDto>
 
+    @GET("cycles/{cycleId}/periods")
+    suspend fun getPeriods(@Path("cycleId") cycleId: String): Response<List<PeriodStatusDto>>
+
+    @GET("cycles/{cycleId}/members/me/contributions")
+    suspend fun getMyContributions(@Path("cycleId") cycleId: String): Response<MyContributionsDto>
+
     @POST("periods/{periodId}/contributions")
     suspend fun registerContribution(@Path("periodId") periodId: String, @Body receipt: ReceiptDto): Response<ContributionDto>
 

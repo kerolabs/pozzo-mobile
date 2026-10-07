@@ -120,6 +120,15 @@ interface ContributionRepository {
 
     suspend fun getCurrentPeriod(cycleId: String): Result<Period>
 
+    /** Every period opened so far, in turn order. */
+    suspend fun getPeriods(cycleId: String): Result<List<Period>>
+
+    /** The member's contributions in the cycle of a group, or the last copy kept on the phone. */
+    suspend fun getMyContributions(groupId: String): Result<MyContributions>
+
+    /** Removes the copies kept on the phone, e.g. when the member signs out. */
+    suspend fun clearLocalContributions()
+
     suspend fun registerContribution(periodId: String, receipt: ReceiptData): Result<Contribution>
 
     suspend fun registerCash(periodId: String, membershipId: String, amount: BigDecimal, receivedOn: LocalDate): Result<Contribution>

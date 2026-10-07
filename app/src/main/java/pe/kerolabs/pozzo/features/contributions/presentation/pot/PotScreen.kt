@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.FactCheck
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Upload
@@ -70,6 +71,7 @@ fun PotScreen(
     onCover: (groupId: String) -> Unit,
     onDeliver: (groupId: String) -> Unit,
     onGroupDetail: (groupId: String) -> Unit,
+    onCalendar: (groupId: String) -> Unit,
     viewModel: PotViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -98,6 +100,9 @@ fun PotScreen(
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver") }
                 },
                 actions = {
+                    IconButton(onClick = { onCalendar(groupId) }) {
+                        Icon(Icons.Outlined.CalendarMonth, contentDescription = "Calendario de turnos")
+                    }
                     Box {
                         IconButton(onClick = { menuOpen = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = "Más opciones") }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
@@ -200,7 +205,7 @@ private fun PotCard(period: Period) {
         LinearProgressIndicator(
             progress = { period.progress },
             modifier = Modifier.fillMaxWidth().height(8.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLowest,
+            color = onBrand,
             trackColor = onBrand.copy(alpha = 0.3f),
             strokeCap = StrokeCap.Round,
             gapSize = 0.dp,

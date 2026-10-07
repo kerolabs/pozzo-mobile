@@ -4,6 +4,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 
 interface AuthService {
 
@@ -21,4 +22,7 @@ interface AuthService {
 
     @GET("members/me/profile")
     suspend fun getProfile(): Response<ProfileDto>
+
+    @PUT("members/me/profile")
+    suspend fun updateProfile(@Body request: UpdateProfileRequestDto): Response<ProfileDto>
 }

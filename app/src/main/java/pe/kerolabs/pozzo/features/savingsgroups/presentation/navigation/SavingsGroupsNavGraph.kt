@@ -73,7 +73,11 @@ data class StartGroupRoute(val groupId: String)
 /**
  * The groups of the member: the list, creating and joining a group, its detail, its turns and its start.
  */
-fun NavGraphBuilder.savingsGroupsNavGraph(navController: NavController, onOpenPot: (groupId: String) -> Unit) {
+fun NavGraphBuilder.savingsGroupsNavGraph(
+    navController: NavController,
+    onOpenPot: (groupId: String) -> Unit,
+    onOpenProfile: () -> Unit,
+) {
 
     val openDetail: (String) -> Unit = { groupId ->
         navController.navigate(GroupDetailRoute(groupId)) { popUpTo<MyGroupsRoute>() }
@@ -89,6 +93,7 @@ fun NavGraphBuilder.savingsGroupsNavGraph(navController: NavController, onOpenPo
                 onOpenGroup = { group ->
                     if (group.status == GroupStatus.STARTED) onOpenPot(group.id) else navController.navigate(GroupDetailRoute(group.id))
                 },
+                onOpenProfile = onOpenProfile,
             )
         }
 

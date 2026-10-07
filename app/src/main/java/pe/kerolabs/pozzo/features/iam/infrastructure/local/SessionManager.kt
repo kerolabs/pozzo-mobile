@@ -17,8 +17,8 @@ import kotlinx.coroutines.runBlocking
 import pe.kerolabs.pozzo.core.network.AccessTokenProvider
 
 /**
- * Keeps the session on the phone with DataStore: the token and the name of the member. The token is
- * also kept in memory so the network layer reads it without waiting.
+ * Keeps the session on the phone with DataStore: the token, the name of the member and their visual
+ * theme. The token is also kept in memory so the network layer reads it without waiting.
  */
 @Singleton
 class SessionManager @Inject constructor(
@@ -28,6 +28,7 @@ class SessionManager @Inject constructor(
     private companion object {
         val TOKEN = stringPreferencesKey("token")
         val DISPLAY_NAME = stringPreferencesKey("display_name")
+        val THEME = stringPreferencesKey("theme")
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -42,17 +43,23 @@ class SessionManager @Inject constructor(
 
     val displayName: Flow<String?> = dataStore.data.map { it[DISPLAY_NAME] }
 
-    suspend fun save(token: String, displayName: String) {
+    val theme: Flow<String?> = dataStore.data.map { it[THEME] }
+
+    suspend fun save(token: String, displayName: String, theme: String) {
         dataStore.edit {
             it[TOKEN] = token
             it[DISPLAY_NAME] = displayName
+            it[THEME] = theme
         }
         cachedToken = token
         loaded = true
     }
 
-    suspend fun updateDisplayName(displayName: String) {
-        dataStore.edit { it[DISPLAY_NAME] = displayName }
+    suspend fun updateProfile(displayName: String, theme: String) {
+        dataStore.edit {
+            it[DISPLAY_NAME] = displayName
+            it[THEME] = theme
+        }
     }
 
     suspend fun clear() {
