@@ -67,6 +67,7 @@ fun MyGroupsScreen(
     onCreateGroup: () -> Unit,
     onJoinWithCode: () -> Unit,
     onOpenGroup: (SavingsGroup) -> Unit,
+    onOpenProfile: () -> Unit,
     viewModel: MyGroupsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -107,7 +108,7 @@ fun MyGroupsScreen(
                     Header(
                         firstName = state.firstName,
                         displayName = state.displayName,
-                        onSignOut = viewModel::signOut,
+                        onOpenProfile = onOpenProfile,
                     )
                 }
                 if (state.showEmptyState) {
@@ -132,8 +133,7 @@ fun MyGroupsScreen(
 }
 
 @Composable
-private fun Header(firstName: String, displayName: String, onSignOut: () -> Unit) {
-    var menuOpen by remember { mutableStateOf(false) }
+private fun Header(firstName: String, displayName: String, onOpenProfile: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
             if (firstName.isNotBlank()) {
@@ -145,24 +145,13 @@ private fun Header(firstName: String, displayName: String, onSignOut: () -> Unit
             }
             Text("Mis juntas", style = MaterialTheme.typography.headlineLarge)
         }
-        Box {
-            InitialsAvatar(
-                name = displayName.ifBlank { "?" },
-                modifier = Modifier.clip(CircleShape).clickable { menuOpen = true },
-                size = 56.dp,
-                background = MaterialTheme.colorScheme.primaryContainer,
-                content = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(
-                    text = { Text("Cerrar sesión") },
-                    onClick = {
-                        menuOpen = false
-                        onSignOut()
-                    },
-                )
-            }
-        }
+        InitialsAvatar(
+            name = displayName.ifBlank { "?" },
+            modifier = Modifier.clip(CircleShape).clickable(onClickLabel = "Ver mi perfil", onClick = onOpenProfile),
+            size = 56.dp,
+            background = MaterialTheme.colorScheme.primaryContainer,
+            content = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
     }
 }
 
