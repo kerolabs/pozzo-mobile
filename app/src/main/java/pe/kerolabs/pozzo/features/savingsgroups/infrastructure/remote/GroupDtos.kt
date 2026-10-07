@@ -30,6 +30,28 @@ data class RulesDto(
 
 data class DestinationDto(val method: String, val phoneNumber: String)
 
+data class CreateGroupRequestDto(
+    val name: String,
+    val contributionAmount: BigDecimal,
+    val periodicity: String,
+    val seats: Int,
+    val firstContributionDate: String,
+    val destination: DestinationDto?,
+)
+
+data class InvitationDto(val code: String, val link: String, val expiresAt: String)
+
+data class GroupPreviewDto(
+    val groupId: String,
+    val name: String,
+    val status: String,
+    val organizerName: String,
+    val rules: RulesDto,
+    val membersCount: Int,
+    val freeSeats: Int,
+    val invitationExpiresAt: String,
+)
+
 data class ReadinessDto(
     val groupFull: Boolean,
     val turnsAssigned: Boolean,
