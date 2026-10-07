@@ -1,7 +1,7 @@
 package pe.kerolabs.pozzo.features.iam.application
 
-import javax.inject.Inject
 import android.util.Patterns
+import javax.inject.Inject
 import pe.kerolabs.pozzo.features.iam.domain.AuthRepository
 import pe.kerolabs.pozzo.features.iam.domain.PhoneNumbers
 import pe.kerolabs.pozzo.features.iam.domain.Profile

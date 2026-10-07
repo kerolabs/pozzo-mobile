@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Policy
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.RadioButtonChecked
@@ -66,7 +67,7 @@ import pe.kerolabs.pozzo.features.iam.domain.ThemePreference
 
 /** I1: the member's name and phone, the preferences, the legal documents and the way out. */
 @Composable
-fun ProfileScreen(onTheme: () -> Unit, viewModel: ProfileViewModel = hiltViewModel()) {
+fun ProfileScreen(onTheme: () -> Unit, onChangePhone: () -> Unit, viewModel: ProfileViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var editing by remember { mutableStateOf<ProfileField?>(null) }
@@ -115,6 +116,13 @@ fun ProfileScreen(onTheme: () -> Unit, viewModel: ProfileViewModel = hiltViewMod
                 editing = ProfileField.NAME
             }
             ProfileRow(
+                Icons.Outlined.PhoneAndroid,
+                "Número de celular",
+                PhoneNumbers.display(profile.phoneNumber),
+                Icons.Outlined.Edit,
+                onChangePhone,
+            )
+            ProfileRow(
                 Icons.Outlined.AccountBalanceWallet,
                 "Número de Yape o Plin",
                 profile.walletNumber?.let(PhoneNumbers::grouped) ?: "Agrégalo para recibir los aportes",
@@ -123,7 +131,7 @@ fun ProfileScreen(onTheme: () -> Unit, viewModel: ProfileViewModel = hiltViewMod
             ProfileRow(
                 Icons.Outlined.Email,
                 "Correo de respaldo",
-                profile.backupEmail ?: "Opcional, por si pierdes tu celular",
+                profile.backupEmail ?: "Agrégalo para recuperar tu cuenta si pierdes tu número",
                 Icons.Outlined.Edit,
             ) { editing = ProfileField.EMAIL }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -182,7 +190,7 @@ fun ProfileScreen(onTheme: () -> Unit, viewModel: ProfileViewModel = hiltViewMod
             title = "Correo de respaldo",
             label = "Correo",
             current = profile?.backupEmail.orEmpty(),
-            supportingText = "Solo lo ves tú. Déjalo vacío para quitarlo.",
+            supportingText = "Sirve para recuperar tu cuenta si pierdes tu número. Solo lo ves tú.",
             keyboardType = KeyboardType.Email,
             sanitize = { it.trim().take(120) },
             onDismiss = { editing = null },

@@ -40,3 +40,22 @@ data class ProfileDto(
     val walletNumber: String?,
     val backupEmail: String?,
 )
+
+data class RecoveryEmailRequestDto(val email: String)
+
+data class RecoveryCodeRequestedDto(val email: String, val expiresAt: String, val resendAvailableAt: String)
+
+data class VerifyRecoveryCodeRequestDto(val email: String, val code: String)
+
+data class RecoveryTokenDto(val recoveryToken: String, val expiresAt: String)
+
+data class RecoveryPhoneCodeRequestDto(val recoveryToken: String, val phoneNumber: String)
+
+data class RecoverAccountRequestDto(
+    val recoveryToken: String,
+    val phoneNumber: String,
+    val code: String,
+    val deviceLabel: String?,
+)
+
+data class ChangePhoneNumberRequestDto(val phoneNumber: String, val code: String)

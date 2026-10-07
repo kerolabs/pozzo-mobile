@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoPrimaryButton
+import pe.kerolabs.pozzo.core.designsystem.components.PozzoTextButton
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoTextField
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoTopBar
 import pe.kerolabs.pozzo.features.iam.domain.CodeRequest
@@ -32,6 +34,7 @@ import pe.kerolabs.pozzo.features.iam.domain.CodeRequest
 fun PhoneScreen(
     onBack: () -> Unit,
     onCodeSent: (CodeRequest) -> Unit,
+    onLostNumber: () -> Unit,
     viewModel: PhoneViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -70,6 +73,11 @@ fun PhoneScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Done),
             )
             Spacer(Modifier.weight(1f))
+            PozzoTextButton(
+                text = "¿Perdiste tu número? Recupera tu cuenta",
+                onClick = onLostNumber,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
             PozzoPrimaryButton(
                 text = "Enviar código",
                 onClick = viewModel::sendCode,
