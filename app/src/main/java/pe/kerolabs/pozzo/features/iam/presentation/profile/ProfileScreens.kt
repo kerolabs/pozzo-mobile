@@ -19,9 +19,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.BrightnessAuto
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Policy
@@ -47,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -65,7 +69,7 @@ import pe.kerolabs.pozzo.features.iam.domain.ThemePreference
 fun ProfileScreen(onTheme: () -> Unit, viewModel: ProfileViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var renaming by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<ProfileField?>(null) }
     LifecycleResumeEffect(Unit) {
         viewModel.load()
         onPauseOrDispose { }
@@ -107,7 +111,21 @@ fun ProfileScreen(onTheme: () -> Unit, viewModel: ProfileViewModel = hiltViewMod
             }
             Spacer(Modifier.height(24.dp))
             Text("Mis datos", style = MaterialTheme.typography.titleLarge)
-            ProfileRow(Icons.Outlined.Person, "Nombre", profile.displayName, Icons.Outlined.Edit) { renaming = true }
+            ProfileRow(Icons.Outlined.Person, "Nombre", profile.displayName, Icons.Outlined.Edit) {
+                editing = ProfileField.NAME
+            }
+            ProfileRow(
+                Icons.Outlined.AccountBalanceWallet,
+                "Número de Yape o Plin",
+                profile.walletNumber?.let(PhoneNumbers::grouped) ?: "Agrégalo para recibir los aportes",
+                Icons.Outlined.Edit,
+            ) { editing = ProfileField.WALLET }
+            ProfileRow(
+                Icons.Outlined.Email,
+                "Correo de respaldo",
+                profile.backupEmail ?: "Opcional, por si pierdes tu celular",
+                Icons.Outlined.Edit,
+            ) { editing = ProfileField.EMAIL }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(16.dp))
             Text("Preferencias", style = MaterialTheme.typography.titleLarge)
@@ -133,17 +151,51 @@ fun ProfileScreen(onTheme: () -> Unit, viewModel: ProfileViewModel = hiltViewMod
         }
     }
 
-    if (renaming) {
-        RenameDialog(
-            current = state.profile?.displayName.orEmpty(),
-            onDismiss = { renaming = false },
+    val profile = state.profile
+    when (editing) {
+        ProfileField.NAME -> EditDialog(
+            title = "Tu nombre",
+            label = "Nombre que ve tu grupo",
+            current = profile?.displayName.orEmpty(),
+            allowEmpty = false,
+            sanitize = { it.take(80) },
+            onDismiss = { editing = null },
             onSave = {
-                renaming = false
+                editing = null
                 viewModel.rename(it)
             },
         )
+        ProfileField.WALLET -> EditDialog(
+            title = "Número de Yape o Plin",
+            label = "Celular donde recibes transferencias",
+            current = profile?.walletNumber.orEmpty(),
+            supportingText = "Se propone como destino de los aportes cuando creas una junta.",
+            keyboardType = KeyboardType.Phone,
+            sanitize = { it.filter(Char::isDigit).take(9) },
+            onDismiss = { editing = null },
+            onSave = {
+                editing = null
+                viewModel.saveWalletNumber(it)
+            },
+        )
+        ProfileField.EMAIL -> EditDialog(
+            title = "Correo de respaldo",
+            label = "Correo",
+            current = profile?.backupEmail.orEmpty(),
+            supportingText = "Solo lo ves tú. Déjalo vacío para quitarlo.",
+            keyboardType = KeyboardType.Email,
+            sanitize = { it.trim().take(120) },
+            onDismiss = { editing = null },
+            onSave = {
+                editing = null
+                viewModel.saveBackupEmail(it)
+            },
+        )
+        null -> Unit
     }
 }
+
+private enum class ProfileField { NAME, WALLET, EMAIL }
 
 @Composable
 private fun ProfileRow(icon: ImageVector, title: String, subtitle: String?, trailing: ImageVector, onClick: () -> Unit) {
@@ -162,19 +214,33 @@ private fun ProfileRow(icon: ImageVector, title: String, subtitle: String?, trai
 }
 
 @Composable
-private fun RenameDialog(current: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
-    var name by rememberSaveable { mutableStateOf(current) }
+private fun EditDialog(
+    title: String,
+    label: String,
+    current: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+    sanitize: (String) -> String,
+    supportingText: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    allowEmpty: Boolean = true,
+) {
+    var value by rememberSaveable { mutableStateOf(current) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Tu nombre") },
+        title = { Text(title) },
         text = {
             PozzoTextField(
-                label = "Nombre que ve tu grupo",
-                value = name,
-                onValueChange = { name = it.take(80) },
+                label = label,
+                value = value,
+                onValueChange = { value = sanitize(it) },
+                supportingText = supportingText,
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             )
         },
-        confirmButton = { TextButton(onClick = { onSave(name) }, enabled = name.isNotBlank()) { Text("Guardar") } },
+        confirmButton = {
+            TextButton(onClick = { onSave(value) }, enabled = allowEmpty || value.isNotBlank()) { Text("Guardar") }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
     )
 }
