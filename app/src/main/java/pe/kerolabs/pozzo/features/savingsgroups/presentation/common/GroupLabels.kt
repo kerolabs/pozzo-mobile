@@ -5,6 +5,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 import pe.kerolabs.pozzo.features.savingsgroups.domain.PaymentMethod
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Periodicity
+import pe.kerolabs.pozzo.features.savingsgroups.domain.TurnMethod
 
 private val Spanish: Locale = Locale.forLanguageTag("es-PE")
 
@@ -34,4 +35,17 @@ fun cutoffLabel(periodicity: Periodicity, firstContributionDate: LocalDate): Str
 fun paymentMethodLabel(method: PaymentMethod): String = when (method) {
     PaymentMethod.YAPE -> "Yape"
     PaymentMethod.PLIN -> "Plin"
+}
+
+fun turnMethodLabel(method: TurnMethod?): String = when (method) {
+    TurnMethod.DRAW -> "Por sorteo"
+    TurnMethod.AGREED -> "Orden acordado"
+    TurnMethod.AUCTION -> "Por subasta"
+    null -> "Sin definir"
+}
+
+/** "Corte día 5" or "Corte cada lunes", for the line under the name of a group. */
+fun shortCutoffLabel(periodicity: Periodicity, firstContributionDate: LocalDate): String = when (periodicity) {
+    Periodicity.MONTHLY -> "Corte día ${firstContributionDate.dayOfMonth}"
+    else -> "Corte " + cutoffLabel(periodicity, firstContributionDate).replaceFirstChar { it.lowercase() }
 }

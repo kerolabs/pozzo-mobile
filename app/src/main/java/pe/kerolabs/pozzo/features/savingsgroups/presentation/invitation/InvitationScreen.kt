@@ -44,7 +44,7 @@ import pe.kerolabs.pozzo.core.designsystem.components.ResultBadge
  * C4: the group is ready; the organizer copies or shares its invitation code and link.
  */
 @Composable
-fun InvitationScreen(groupName: String, code: String, link: String, onDone: () -> Unit) {
+fun InvitationScreen(groupName: String, code: String, link: String, doneLabel: String, onDone: () -> Unit) {
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -121,7 +121,7 @@ fun InvitationScreen(groupName: String, code: String, link: String, onDone: () -
                 },
             )
             Spacer(Modifier.height(8.dp))
-            PozzoTextButton(text = "Ir a mis juntas", onClick = onDone)
+            PozzoTextButton(text = doneLabel, onClick = onDone)
         }
     }
 }
