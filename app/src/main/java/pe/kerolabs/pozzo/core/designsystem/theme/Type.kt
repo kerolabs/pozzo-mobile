@@ -2,12 +2,27 @@ package pe.kerolabs.pozzo.core.designsystem.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import pe.kerolabs.pozzo.R
 
-// The style guide uses Plus Jakarta Sans; until its font files are added the system sans serif keeps the same scale.
-val PozzoFontFamily: FontFamily = FontFamily.SansSerif
+private fun jakarta(weight: FontWeight) = Font(
+    resId = R.font.plus_jakarta_sans,
+    weight = weight,
+    variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight)),
+)
+
+// Plus Jakarta Sans (SIL Open Font License), the only family of the style guide, as a variable font.
+val PozzoFontFamily: FontFamily = FontFamily(
+    jakarta(FontWeight.Normal),
+    jakarta(FontWeight.Medium),
+    jakarta(FontWeight.SemiBold),
+    jakarta(FontWeight.Bold),
+    jakarta(FontWeight.ExtraBold),
+)
 
 private fun style(weight: FontWeight, size: Int, lineHeight: Int) = TextStyle(
     fontFamily = PozzoFontFamily,
