@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -107,6 +108,10 @@ dependencies {
 
     // ML Kit: reads the receipts on the device
     implementation(libs.mlkit.text.recognition)
+
+    // Push notifications (Firebase Cloud Messaging)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
     // Data Store
     implementation(libs.androidx.datastore.preferences)

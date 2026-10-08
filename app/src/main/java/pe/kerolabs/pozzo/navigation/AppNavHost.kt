@@ -1,5 +1,10 @@
 package pe.kerolabs.pozzo.navigation
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -9,10 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -27,7 +36,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination
@@ -39,14 +51,19 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import kotlin.reflect.KClass
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoLogo
 import pe.kerolabs.pozzo.features.compliancehistory.presentation.navigation.HistoryRoute
+import pe.kerolabs.pozzo.features.compliancehistory.presentation.navigation.MyHistoryRoute
 import pe.kerolabs.pozzo.features.compliancehistory.presentation.navigation.complianceHistoryNavGraph
 import pe.kerolabs.pozzo.features.contributions.presentation.navigation.MyContributionsRoute
 import pe.kerolabs.pozzo.features.contributions.presentation.navigation.PotRoute
+import pe.kerolabs.pozzo.features.contributions.presentation.navigation.ReviewsRoute
 import pe.kerolabs.pozzo.features.contributions.presentation.navigation.contributionsNavGraph
 import pe.kerolabs.pozzo.features.iam.presentation.navigation.IamNavGraphRoute
 import pe.kerolabs.pozzo.features.iam.presentation.navigation.ProfileRoute
 import pe.kerolabs.pozzo.features.iam.presentation.navigation.iamNavGraph
 import pe.kerolabs.pozzo.features.iam.presentation.navigation.profileNavGraph
+import pe.kerolabs.pozzo.features.notifications.presentation.PushViewModel
+import pe.kerolabs.pozzo.features.notifications.presentation.navigation.NoticesRoute
+import pe.kerolabs.pozzo.features.notifications.presentation.navigation.notificationsNavGraph
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.GroupDetailRoute
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.JoinCodeRoute
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.MyGroupsRoute
@@ -63,6 +80,7 @@ private enum class TopDestination(
 ) {
     GROUPS("Juntas", MyGroupsRoute, MyGroupsRoute::class, Icons.Outlined.Groups, Icons.Filled.Groups),
     HISTORY("Historial", HistoryRoute, HistoryRoute::class, Icons.Outlined.History, Icons.Filled.History),
+    NOTICES("Avisos", NoticesRoute, NoticesRoute::class, Icons.Outlined.Notifications, Icons.Filled.Notifications),
     PROFILE("Perfil", ProfileRoute, ProfileRoute::class, Icons.Outlined.Person, Icons.Filled.Person),
 }
 
@@ -76,8 +94,27 @@ private fun NavController.navigateToTop(destination: TopDestination) = navigate(
     restoreState = true
 }
 
+/**
+ * Opens the screen a notice points to: "pozzo://groups/{id}" is the pot of the group,
+ * "pozzo://groups/{id}/reviews" the receipts to review and "pozzo://compliance" the member's history.
+ */
+private fun NavController.openDeepLink(deepLink: String) {
+    val parts = deepLink.removePrefix("pozzo://").split('/').filter { it.isNotEmpty() }
+    when {
+        parts.size == 3 && parts[0] == "groups" && parts[2] == "reviews" -> navigate(ReviewsRoute(parts[1]))
+        parts.size == 2 && parts[0] == "groups" -> navigate(PotRoute(parts[1]))
+        parts.firstOrNull() == "compliance" -> navigate(MyHistoryRoute)
+    }
+}
+
 @Composable
-fun AppNavHost(navController: NavHostController, sessionViewModel: SessionViewModel = hiltViewModel()) {
+fun AppNavHost(
+    navController: NavHostController,
+    deepLink: String? = null,
+    onDeepLinkHandled: () -> Unit = {},
+    sessionViewModel: SessionViewModel = hiltViewModel(),
+    pushViewModel: PushViewModel = hiltViewModel(),
+) {
     val session by sessionViewModel.status.collectAsStateWithLifecycle()
 
     if (session == SessionStatus.Unknown) {
@@ -99,10 +136,21 @@ fun AppNavHost(navController: NavHostController, sessionViewModel: SessionViewMo
         if (session == SessionStatus.SignedOut && !inAccessFlow) {
             navController.navigate(IamNavGraphRoute) { popUpTo(0) }
         }
+        if (session == SessionStatus.SignedIn) pushViewModel.onSignedIn() else pushViewModel.onSignedOut()
     }
+
+    if (session == SessionStatus.SignedIn) AskForNotificationPermission()
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val current = backStackEntry?.destination.topDestination()
+    val unseen by pushViewModel.unseen.collectAsStateWithLifecycle()
+
+    // The dot of Avisos is counted again whenever the member moves between destinations or comes back.
+    LaunchedEffect(current) { if (session == SessionStatus.SignedIn && current != null) pushViewModel.refreshUnseen() }
+    LifecycleResumeEffect(session) {
+        if (session == SessionStatus.SignedIn) pushViewModel.refreshUnseen()
+        onPauseOrDispose { }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -114,7 +162,13 @@ fun AppNavHost(navController: NavHostController, sessionViewModel: SessionViewMo
                         NavigationBarItem(
                             selected = selected,
                             onClick = { if (!selected) navController.navigateToTop(destination) },
-                            icon = { Icon(if (selected) destination.selectedIcon else destination.icon, contentDescription = null) },
+                            icon = {
+                                BadgedBox(badge = {
+                                    if (destination == TopDestination.NOTICES && unseen > 0 && !selected) Badge()
+                                }) {
+                                    Icon(if (selected) destination.selectedIcon else destination.icon, contentDescription = null)
+                                }
+                            },
                             label = { Text(destination.label, style = MaterialTheme.typography.labelLarge) },
                             colors = NavigationBarItemDefaults.colors(indicatorColor = MaterialTheme.colorScheme.primaryContainer),
                         )
@@ -144,7 +198,29 @@ fun AppNavHost(navController: NavHostController, sessionViewModel: SessionViewMo
                 onHome = { navController.navigate(MyGroupsRoute) { popUpTo<MyGroupsRoute> { inclusive = true } } },
             )
             complianceHistoryNavGraph(navController, onGroupContributions = { navController.navigate(MyContributionsRoute(it)) })
+            notificationsNavGraph(onOpenDeepLink = { navController.openDeepLink(it) })
             profileNavGraph(navController)
         }
+    }
+
+    // A tapped notification opens its screen once there is a session to show it.
+    LaunchedEffect(deepLink, session) {
+        if (deepLink != null && session == SessionStatus.SignedIn) {
+            navController.openDeepLink(deepLink)
+            onDeepLinkHandled()
+        }
+    }
+}
+
+/** Android 13 and later ask the member before showing notifications; it is asked once per launch. */
+@Composable
+private fun AskForNotificationPermission() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(Unit) {
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!granted) launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 }
