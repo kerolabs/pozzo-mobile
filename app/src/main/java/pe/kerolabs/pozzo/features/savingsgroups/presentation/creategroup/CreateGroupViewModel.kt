@@ -1,5 +1,6 @@
 package pe.kerolabs.pozzo.features.savingsgroups.presentation.creategroup
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,8 @@ import pe.kerolabs.pozzo.core.network.userMessage
 import pe.kerolabs.pozzo.features.iam.application.GetProfileUseCase
 import pe.kerolabs.pozzo.features.iam.domain.PhoneNumbers
 import pe.kerolabs.pozzo.features.savingsgroups.application.CreateGroupUseCase
+import pe.kerolabs.pozzo.features.savingsgroups.application.GetGroupDetailUseCase
+import pe.kerolabs.pozzo.features.savingsgroups.application.UpdateGroupUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Destination
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Invitation
 import pe.kerolabs.pozzo.features.savingsgroups.domain.NewGroup
@@ -40,7 +43,21 @@ data class CreateGroupUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val created: Pair<SavingsGroup, Invitation>? = null,
+    /** The group being edited, or null while creating a new one. */
+    val editingGroupId: String? = null,
+    /** True while the group to edit is read. */
+    val isPreparing: Boolean = false,
+    /** The fewest seats allowed: the members the group already has. */
+    val minSeats: Int = NewGroup.MIN_SEATS,
+    val originalSeats: Int? = null,
+    val turnsAssigned: Boolean = false,
+    val saved: Boolean = false,
 ) {
+    val isEditing: Boolean get() = editingGroupId != null
+
+    /** Changing the number of members discards the turns, because they no longer cover the whole group. */
+    val clearsTurns: Boolean get() = turnsAssigned && originalSeats != null && seats != originalSeats
+
     /** The amount typed, or null while it is not a valid amount of soles. */
     val contributionAmount: BigDecimal?
         get() = amount.replace(',', '.').toBigDecimalOrNull()
@@ -49,7 +66,7 @@ data class CreateGroupUiState(
     val potAmount: BigDecimal? get() = contributionAmount?.multiply(BigDecimal(seats))
 
     val rulesValid: Boolean
-        get() = name.isNotBlank() && contributionAmount != null && seats in NewGroup.MIN_SEATS..NewGroup.MAX_SEATS
+        get() = name.isNotBlank() && contributionAmount != null && seats in minSeats..NewGroup.MAX_SEATS
 
     val datesValid: Boolean
         get() = !firstContributionDate.isBefore(LocalDate.now()) && PhoneNumbers.isValid(destinationPhone)
@@ -64,21 +81,59 @@ data class CreateGroupUiState(
     )
 }
 
+/**
+ * C1 to C3, also used to edit a group before it starts: opened with a "groupId" the steps start from the
+ * group as it is and the last one saves the changes.
+ */
 @HiltViewModel
 class CreateGroupViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val createGroup: CreateGroupUseCase,
+    private val updateGroup: UpdateGroupUseCase,
+    private val getGroupDetail: GetGroupDetailUseCase,
     private val getProfile: GetProfileUseCase,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(CreateGroupUiState())
+    private val editingGroupId: String? = savedStateHandle["groupId"]
+
+    private val _state = MutableStateFlow(CreateGroupUiState(editingGroupId = editingGroupId, isPreparing = editingGroupId != null))
     val state: StateFlow<CreateGroupUiState> = _state.asStateFlow()
 
     init {
-        // The Yape or Plin number of the profile is offered as the destination; the organizer can change it.
+        if (editingGroupId != null) loadGroup(editingGroupId) else offerWalletNumber()
+    }
+
+    // The Yape or Plin number of the profile is offered as the destination; the organizer can change it.
+    private fun offerWalletNumber() {
         viewModelScope.launch {
             getProfile().getOrNull()?.walletNumber?.let { number ->
                 _state.update { if (it.destinationPhone.isEmpty()) it.copy(destinationPhone = number) else it }
             }
+        }
+    }
+
+    private fun loadGroup(groupId: String) {
+        viewModelScope.launch {
+            getGroupDetail(groupId)
+                .onSuccess { detail ->
+                    val group = detail.group
+                    _state.update {
+                        it.copy(
+                            isPreparing = false,
+                            name = group.name,
+                            amount = group.contributionAmount.stripTrailingZeros().toPlainString(),
+                            periodicity = group.periodicity,
+                            seats = group.seats,
+                            firstContributionDate = group.firstContributionDate,
+                            paymentMethod = group.destination?.method ?: it.paymentMethod,
+                            destinationPhone = group.destination?.phoneNumber.orEmpty(),
+                            minSeats = maxOf(NewGroup.MIN_SEATS, detail.activeMembers),
+                            originalSeats = group.seats,
+                            turnsAssigned = group.readiness.turnsAssigned,
+                        )
+                    }
+                }
+                .onFailure { error -> _state.update { it.copy(isPreparing = false, errorMessage = error.userMessage()) } }
         }
     }
 
@@ -90,7 +145,7 @@ class CreateGroupViewModel @Inject constructor(
     fun onPeriodicityChange(value: Periodicity) = _state.update { it.copy(periodicity = value) }
 
     fun onSeatsChange(value: Int) =
-        _state.update { it.copy(seats = value.coerceIn(NewGroup.MIN_SEATS, NewGroup.MAX_SEATS)) }
+        _state.update { it.copy(seats = value.coerceIn(it.minSeats, NewGroup.MAX_SEATS)) }
 
     fun onFirstContributionDateChange(value: LocalDate) = _state.update { it.copy(firstContributionDate = value) }
 
@@ -117,9 +172,21 @@ class CreateGroupViewModel @Inject constructor(
         return true
     }
 
-    fun create() {
+    /** The last step: creates the group, or saves the changes of the one being edited. */
+    fun submit() {
         val current = _state.value
         if (!current.rulesValid || !current.datesValid || current.isLoading) return
+        val groupId = current.editingGroupId ?: return create()
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, errorMessage = null) }
+            updateGroup(groupId, current.toNewGroup())
+                .onSuccess { _state.update { it.copy(isLoading = false, saved = true) } }
+                .onFailure { error -> _state.update { it.copy(isLoading = false, errorMessage = error.userMessage()) } }
+        }
+    }
+
+    private fun create() {
+        val current = _state.value
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
             createGroup(current.toNewGroup())
@@ -129,4 +196,6 @@ class CreateGroupViewModel @Inject constructor(
     }
 
     fun onCreatedHandled() = _state.update { it.copy(created = null) }
+
+    fun onSavedHandled() = _state.update { it.copy(saved = false) }
 }

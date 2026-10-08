@@ -11,9 +11,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import pe.kerolabs.pozzo.core.network.ApiException
+import pe.kerolabs.pozzo.core.push.IncomingPushes
 import pe.kerolabs.pozzo.core.network.userMessage
 import pe.kerolabs.pozzo.features.iam.domain.PhoneNumbers
 import pe.kerolabs.pozzo.features.savingsgroups.application.AddManualMemberUseCase
+import pe.kerolabs.pozzo.features.savingsgroups.application.DeleteGroupUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.GetGroupDetailUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.GetInvitationUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.RemoveMemberUseCase
@@ -41,6 +44,10 @@ data class GroupDetailUiState(
     val tab: GroupDetailTab = GroupDetailTab.MEMBERS,
     val addMember: AddMemberForm? = null,
     val invitation: Invitation? = null,
+    val confirmingDelete: Boolean = false,
+    val isDeleting: Boolean = false,
+    /** The group no longer exists: the organizer deleted it, here or on another phone. */
+    val closed: Boolean = false,
 )
 
 @HiltViewModel
@@ -50,6 +57,8 @@ class GroupDetailViewModel @Inject constructor(
     private val addManualMember: AddManualMemberUseCase,
     private val removeMember: RemoveMemberUseCase,
     private val getInvitation: GetInvitationUseCase,
+    private val deleteGroup: DeleteGroupUseCase,
+    incomingPushes: IncomingPushes,
 ) : ViewModel() {
 
     val groupId: String = savedStateHandle.toRoute<GroupDetailRoute>().groupId
@@ -57,13 +66,44 @@ class GroupDetailViewModel @Inject constructor(
     private val _state = MutableStateFlow(GroupDetailUiState())
     val state: StateFlow<GroupDetailUiState> = _state.asStateFlow()
 
-    /** Called every time the screen comes back, so turns assigned or a start elsewhere show up. */
+    init {
+        // A push about this group, such as a member who joined, refreshes it on screen right away.
+        viewModelScope.launch {
+            incomingPushes.deepLinks.collect { link -> if (groupId in link) load() }
+        }
+    }
+
+    /**
+     * Called every time the screen comes back, while it waits for the group to start, and on each push
+     * about the group, so members who join, turns assigned or a start elsewhere show up.
+     */
     fun load() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = it.detail == null, errorMessage = null) }
             getGroupDetail(groupId)
                 .onSuccess { detail -> _state.update { it.copy(isLoading = false, detail = detail) } }
-                .onFailure { error -> _state.update { it.copy(isLoading = false, errorMessage = error.userMessage()) } }
+                .onFailure { error ->
+                    if (error is ApiException && error.status == 404) {
+                        _state.update { it.copy(isLoading = false, closed = true) }
+                    } else {
+                        _state.update { it.copy(isLoading = false, errorMessage = error.userMessage()) }
+                    }
+                }
+        }
+    }
+
+    fun askToDelete() = _state.update { it.copy(confirmingDelete = true) }
+
+    fun dismissDelete() = _state.update { it.copy(confirmingDelete = false) }
+
+    fun delete() {
+        viewModelScope.launch {
+            _state.update { it.copy(isDeleting = true) }
+            deleteGroup(groupId)
+                .onSuccess { _state.update { it.copy(isDeleting = false, confirmingDelete = false, closed = true) } }
+                .onFailure { error ->
+                    _state.update { it.copy(isDeleting = false, confirmingDelete = false, message = error.userMessage()) }
+                }
         }
     }
 

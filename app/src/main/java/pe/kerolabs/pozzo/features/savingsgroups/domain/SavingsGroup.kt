@@ -131,6 +131,15 @@ interface SavingsGroupRepository {
 
     /** Starts the group: its rules freeze and the first period opens. */
     suspend fun startGroup(groupId: String): Result<SavingsGroup>
+
+    /**
+     * Changes the name, the rules and the destination of a group that has not started. Changing the number
+     * of members discards the turns already assigned.
+     */
+    suspend fun updateGroup(groupId: String, group: NewGroup): Result<SavingsGroup>
+
+    /** Deletes a group that has not started, with its members and invitation. */
+    suspend fun deleteGroup(groupId: String): Result<Unit>
 }
 
 /**

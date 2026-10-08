@@ -96,12 +96,16 @@ private fun NavController.navigateToTop(destination: TopDestination) = navigate(
 
 /**
  * Opens the screen a notice points to: "pozzo://groups/{id}" is the pot of the group,
- * "pozzo://groups/{id}/reviews" the receipts to review and "pozzo://compliance" the member's history.
+ * "pozzo://groups/{id}/detail" its members and turns before it starts, "pozzo://groups/{id}/reviews" the
+ * receipts to review, "pozzo://groups" the list of groups and "pozzo://compliance" the member's history.
  */
 private fun NavController.openDeepLink(deepLink: String) {
     val parts = deepLink.removePrefix("pozzo://").split('/').filter { it.isNotEmpty() }
     when {
         parts.size == 3 && parts[0] == "groups" && parts[2] == "reviews" -> navigate(ReviewsRoute(parts[1]))
+        parts.size == 3 && parts[0] == "groups" && parts[2] == "detail" ->
+            navigate(GroupDetailRoute(parts[1])) { launchSingleTop = true }
+        parts.size == 1 && parts[0] == "groups" -> navigate(MyGroupsRoute) { popUpTo<MyGroupsRoute> { inclusive = true } }
         parts.size == 2 && parts[0] == "groups" -> navigate(PotRoute(parts[1]))
         parts.firstOrNull() == "compliance" -> navigate(MyHistoryRoute)
     }

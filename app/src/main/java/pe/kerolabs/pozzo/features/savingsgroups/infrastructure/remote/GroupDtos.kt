@@ -30,6 +30,14 @@ data class RulesDto(
 
 data class DestinationDto(val method: String, val phoneNumber: String)
 
+data class UpdateRulesRequestDto(
+    val name: String,
+    val contributionAmount: BigDecimal,
+    val periodicity: String,
+    val seats: Int,
+    val firstContributionDate: String,
+)
+
 data class CreateGroupRequestDto(
     val name: String,
     val contributionAmount: BigDecimal,

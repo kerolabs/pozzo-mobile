@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import pe.kerolabs.pozzo.core.push.IncomingPushes
 import pe.kerolabs.pozzo.core.network.userMessage
 import pe.kerolabs.pozzo.features.iam.application.ObserveDisplayNameUseCase
 import pe.kerolabs.pozzo.features.iam.application.ObservePhotoUrlUseCase
@@ -38,6 +39,7 @@ class MyGroupsViewModel @Inject constructor(
     observeDisplayName: ObserveDisplayNameUseCase,
     observePhotoUrl: ObservePhotoUrlUseCase,
     private val refreshMyGroups: RefreshMyGroupsUseCase,
+    incomingPushes: IncomingPushes,
 ) : ViewModel() {
 
     private val refresh = MutableStateFlow(RefreshState(isRefreshing = true, errorMessage = null, loadedOnce = false))
@@ -60,6 +62,10 @@ class MyGroupsViewModel @Inject constructor(
 
     init {
         refresh()
+        // A push about a group (someone joined, it started or it was deleted) refreshes the list on view.
+        viewModelScope.launch {
+            incomingPushes.deepLinks.collect { link -> if (link.startsWith("pozzo://groups")) refresh() }
+        }
     }
 
     fun refresh() {
