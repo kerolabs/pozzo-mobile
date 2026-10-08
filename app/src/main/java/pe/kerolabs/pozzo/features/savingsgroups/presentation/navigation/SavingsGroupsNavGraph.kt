@@ -28,6 +28,10 @@ data object MyGroupsRoute
 @Serializable
 data object CreateGroupRoute
 
+/** The creation flow opened on a group that has not started, to change its rules and destination. */
+@Serializable
+data class EditGroupRoute(val groupId: String)
+
 /**
  * @param fromDetail true when it was opened from the detail of the group, so "done" goes back there
  */
@@ -108,6 +112,14 @@ fun NavGraphBuilder.savingsGroupsNavGraph(
             )
         }
 
+        composable<EditGroupRoute> {
+            CreateGroupScreen(
+                onClose = { navController.popBackStack() },
+                onCreated = { _, _ -> },
+                onSaved = { navController.popBackStack() },
+            )
+        }
+
         composable<InvitationRoute> { entry ->
             val route = entry.toRoute<InvitationRoute>()
             InvitationScreen(
@@ -154,6 +166,8 @@ fun NavGraphBuilder.savingsGroupsNavGraph(
                 onAssignTurns = { groupId, seats -> navController.navigate(AssignTurnsRoute(groupId, seats)) },
                 onStartGroup = { groupId -> navController.navigate(StartGroupRoute(groupId)) },
                 onOpenPot = onOpenPot,
+                onEditGroup = { groupId -> navController.navigate(EditGroupRoute(groupId)) },
+                onClosed = { navController.popBackStack<MyGroupsRoute>(inclusive = false) },
                 onShowInvitation = { groupName, invitation ->
                     val groupId = it.toRoute<GroupDetailRoute>().groupId
                     navController.navigate(InvitationRoute(groupId, groupName, invitation.code, invitation.link, fromDetail = true))

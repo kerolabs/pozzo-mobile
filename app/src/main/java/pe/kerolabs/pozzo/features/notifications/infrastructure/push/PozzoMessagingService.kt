@@ -10,12 +10,14 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import pe.kerolabs.pozzo.core.push.IncomingPushes
 import pe.kerolabs.pozzo.features.iam.application.ObserveSessionUseCase
 import pe.kerolabs.pozzo.features.notifications.application.RegisterDeviceUseCase
 
 /**
  * Receives the pushes of Firebase Cloud Messaging. A new token is registered in the backend right away
- * when there is a session; a push that arrives with the app open is shown here.
+ * when there is a session; a push that arrives with the app open is shown here, and its deep link goes to
+ * [IncomingPushes] so the screen on view can refresh.
  */
 @AndroidEntryPoint
 class PozzoMessagingService : FirebaseMessagingService() {
@@ -23,6 +25,8 @@ class PozzoMessagingService : FirebaseMessagingService() {
     @Inject lateinit var observeSession: ObserveSessionUseCase
 
     @Inject lateinit var registerDevice: RegisterDeviceUseCase
+
+    @Inject lateinit var incomingPushes: IncomingPushes
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -33,6 +37,7 @@ class PozzoMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
+        message.data[PushNotifications.EXTRA_DEEP_LINK]?.let(incomingPushes::onPush)
         val notification = message.notification ?: return
         PushNotifications.show(
             context = this,

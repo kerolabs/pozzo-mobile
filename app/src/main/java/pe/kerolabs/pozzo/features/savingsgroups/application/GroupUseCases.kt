@@ -83,6 +83,15 @@ class GetTurnsUseCase @Inject constructor(private val repository: SavingsGroupRe
     suspend operator fun invoke(groupId: String) = repository.getTurns(groupId)
 }
 
+class UpdateGroupUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String, group: NewGroup) =
+        repository.updateGroup(groupId, group.copy(name = group.name.trim()))
+}
+
+class DeleteGroupUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String) = repository.deleteGroup(groupId)
+}
+
 class StartGroupUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
     suspend operator fun invoke(groupId: String) = repository.startGroup(groupId)
 }

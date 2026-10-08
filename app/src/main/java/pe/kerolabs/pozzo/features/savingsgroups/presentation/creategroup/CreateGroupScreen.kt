@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -71,16 +73,25 @@ import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.paymentMetho
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.periodicityTitle
 
 /**
- * C1, C2 and C3: the rules, the dates and destination, and the summary of a new group.
+ * C1, C2 and C3: the rules, the dates and destination, and the summary of a new group. Opened for a group
+ * that has not started, the same steps edit it and [onSaved] runs once the changes are saved.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateGroupScreen(
     onClose: () -> Unit,
     onCreated: (SavingsGroup, Invitation) -> Unit,
+    onSaved: () -> Unit = {},
     viewModel: CreateGroupViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(state.saved) {
+        if (state.saved) {
+            viewModel.onSavedHandled()
+            onSaved()
+        }
+    }
 
     LaunchedEffect(state.created) {
         state.created?.let { (group, invitation) ->
@@ -93,7 +104,9 @@ fun CreateGroupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Nueva junta", style = MaterialTheme.typography.titleLarge) },
+                title = {
+                    Text(if (state.isEditing) "Editar junta" else "Nueva junta", style = MaterialTheme.typography.titleLarge)
+                },
                 navigationIcon = {
                     IconButton(onClick = { if (!viewModel.back()) onClose() }) {
                         if (state.step == CreateGroupStep.RULES) {
@@ -107,6 +120,10 @@ fun CreateGroupScreen(
             )
         },
     ) { padding ->
+        if (state.isPreparing) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            return@Scaffold
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -135,8 +152,11 @@ fun CreateGroupScreen(
                     PozzoPrimaryButton(text = "Continuar", onClick = viewModel::next, enabled = state.rulesValid)
                 CreateGroupStep.DATES ->
                     PozzoPrimaryButton(text = "Continuar", onClick = viewModel::next, enabled = state.datesValid)
-                CreateGroupStep.SUMMARY ->
-                    PozzoPrimaryButton(text = "Crear junta", onClick = viewModel::create, loading = state.isLoading)
+                CreateGroupStep.SUMMARY -> PozzoPrimaryButton(
+                    text = if (state.isEditing) "Guardar cambios" else "Crear junta",
+                    onClick = viewModel::submit,
+                    loading = state.isLoading,
+                )
             }
             Spacer(Modifier.height(8.dp))
         }
@@ -181,11 +201,16 @@ private fun RulesStep(state: CreateGroupUiState, viewModel: CreateGroupViewModel
         NumberStepper(
             value = state.seats,
             onValueChange = viewModel::onSeatsChange,
-            range = NewGroup.MIN_SEATS..NewGroup.MAX_SEATS,
+            range = state.minSeats..NewGroup.MAX_SEATS,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "El ciclo dura ${state.seats} períodos y cada integrante cobra una vez. Entre ${NewGroup.MIN_SEATS} y ${NewGroup.MAX_SEATS} integrantes.",
+            "El ciclo dura ${state.seats} períodos y cada integrante cobra una vez. " +
+                if (state.minSeats > NewGroup.MIN_SEATS) {
+                    "No puede ser menos que los ${state.minSeats} integrantes que ya tiene la junta."
+                } else {
+                    "Entre ${NewGroup.MIN_SEATS} y ${NewGroup.MAX_SEATS} integrantes."
+                },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -300,6 +325,13 @@ private fun SummaryStep(state: CreateGroupUiState) {
             "${formatSoles(amount)} × ${state.seats} integrantes",
             style = MaterialTheme.typography.bodyLarge,
             color = onBrand,
+        )
+    }
+    if (state.clearsTurns) {
+        Text(
+            "Cambiaste el número de integrantes: los turnos asignados se borran y tendrás que asignarlos de nuevo.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error,
         )
     }
     Text(

@@ -18,6 +18,9 @@ abstract class GroupDao {
     @Query("DELETE FROM my_groups")
     abstract suspend fun deleteAll()
 
+    @Query("DELETE FROM my_groups WHERE id = :groupId")
+    abstract suspend fun deleteById(groupId: String)
+
     /** Replaces the local copy in one transaction, so a group the member left disappears. */
     @Transaction
     open suspend fun replaceAll(groups: List<GroupEntity>) {

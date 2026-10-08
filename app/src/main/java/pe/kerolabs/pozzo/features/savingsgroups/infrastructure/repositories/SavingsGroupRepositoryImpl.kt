@@ -35,6 +35,7 @@ import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.GroupsServ
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.InvitationDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.MemberDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.TurnCalendarDto
+import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.UpdateRulesRequestDto
 
 /**
  * The groups are read from Room and refreshed from the backend, so the list opens without connection.
@@ -101,7 +102,9 @@ class SavingsGroupRepositoryImpl @Inject constructor(
         apiCall { service.joinGroup(code) }.map { dto -> saveLocally(dto) }
 
     override suspend fun getGroup(groupId: String): Result<SavingsGroup> =
-        apiCall { service.getGroup(groupId) }.map { dto -> saveLocally(dto) }
+        apiCall { service.getGroup(groupId) }
+            .onFailure { error -> if (error is ApiException && error.status == 404) dao.deleteById(groupId) }
+            .map { dto -> saveLocally(dto) }
 
     override suspend fun getMembers(groupId: String): Result<List<Member>> =
         apiCall { service.getMembers(groupId) }.map { members -> members.map { it.toDomain() } }
@@ -124,6 +127,25 @@ class SavingsGroupRepositoryImpl @Inject constructor(
 
     override suspend fun startGroup(groupId: String): Result<SavingsGroup> =
         apiCall { service.startGroup(groupId) }.map { dto -> saveLocally(dto) }
+
+    override suspend fun updateGroup(groupId: String, group: NewGroup): Result<SavingsGroup> {
+        val rules = UpdateRulesRequestDto(
+            name = group.name,
+            contributionAmount = group.contributionAmount,
+            periodicity = group.periodicity.name,
+            seats = group.seats,
+            firstContributionDate = group.firstContributionDate.toString(),
+        )
+        val updated = apiCall { service.updateRules(groupId, rules) }
+        val destination = group.destination ?: return updated.map { dto -> saveLocally(dto) }
+        return updated.mapCatching {
+            apiCall { service.defineDestination(groupId, DestinationDto(destination.method.name, destination.phoneNumber)) }
+                .getOrThrow()
+        }.map { dto -> saveLocally(dto) }
+    }
+
+    override suspend fun deleteGroup(groupId: String): Result<Unit> =
+        apiCall { service.deleteGroup(groupId) }.map { dao.deleteById(groupId) }
 
     /** A group created, joined or read appears in the list right away, without waiting for a refresh. */
     private suspend fun saveLocally(dto: GroupDto): SavingsGroup {

@@ -4,7 +4,9 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 
 interface GroupsService {
@@ -17,6 +19,15 @@ interface GroupsService {
 
     @GET("groups/{groupId}")
     suspend fun getGroup(@Path("groupId") groupId: String): Response<GroupDto>
+
+    @PUT("groups/{groupId}/rules")
+    suspend fun updateRules(@Path("groupId") groupId: String, @Body request: UpdateRulesRequestDto): Response<GroupDto>
+
+    @PATCH("groups/{groupId}/destination")
+    suspend fun defineDestination(@Path("groupId") groupId: String, @Body request: DestinationDto): Response<GroupDto>
+
+    @DELETE("groups/{groupId}")
+    suspend fun deleteGroup(@Path("groupId") groupId: String): Response<Unit>
 
     @POST("groups/{groupId}/start")
     suspend fun startGroup(@Path("groupId") groupId: String): Response<GroupDto>
