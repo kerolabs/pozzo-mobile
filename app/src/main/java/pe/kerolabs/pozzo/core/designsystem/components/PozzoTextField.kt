@@ -11,8 +11,11 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.semantics
+
 
 /**
  * Text field with the label above it, as in the design file, and an optional help or error text.
@@ -42,7 +45,7 @@ fun PozzoTextField(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics{ contentDescription = label },
             placeholder = placeholder?.let { { Text(it) } },
             prefix = prefix?.let { { Text("$it  ") } },
             isError = errorText != null,
