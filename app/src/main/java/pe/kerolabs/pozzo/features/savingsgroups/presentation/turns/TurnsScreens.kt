@@ -96,7 +96,7 @@ fun DrawResultScreen(onBack: () -> Unit, onConfirm: () -> Unit, viewModel: DrawR
                                 name = turn.displayName,
                                 cutoffDate = turn.cutoffDate,
                                 highlighted = turn.turnNumber == 1,
-                                trailing = { InitialsAvatar(name = turn.displayName, size = 40.dp) },
+                                trailing = { InitialsAvatar(name = turn.displayName, size = 40.dp, photoUrl = turn.photoUrl) },
                             )
                         }
                         state.errorMessage?.let {
