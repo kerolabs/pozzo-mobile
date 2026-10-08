@@ -37,12 +37,12 @@ android {
     // Which backend the app talks to; switch it in Android Studio > Build Variants.
     flavorDimensions += "backend"
     productFlavors {
-        // The deployed backend: for real phones, the demo and the delivered APK.
-        create("render") {
+        // The deployed backend, on the Oracle Cloud instance: for real phones, the demo and the delivered APK.
+        create("cloud") {
             dimension = "backend"
             isDefault = true
             resValue("string", "app_name", "Pozzo")
-            buildConfigField("String", "API_BASE_URL", "\"https://pozzo-backend.onrender.com/api/v1/\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://api-kerolabs.duckdns.org/api/v1/\"")
         }
         // A backend running on this computer. It installs next to the other one as "Pozzo Local".
         // The emulator, or a phone on USB, reaches it after "adb reverse tcp:8080 tcp:8080".

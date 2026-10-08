@@ -24,12 +24,13 @@ object NetworkModule {
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
             redactHeader("Authorization")
         }
-        // The free Render instance sleeps when idle and takes up to a minute to wake up.
+        // Without signal the error shows in seconds; writing gets longer, so a receipt image uploads on a slow network.
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor(logging)
-            .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
 
