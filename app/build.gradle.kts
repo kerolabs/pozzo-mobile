@@ -56,11 +56,27 @@ android {
         }
     }
 
+    // Release signing: the keystore stays outside the repository and its path and passwords live in
+    // local.properties (pozzo.keystore.path, .password, .alias, .keyPassword). Without them the release
+    // build is not signed and has to go through Build > Generate Signed App Bundle or APK.
+    val keystorePath = localProperties.getProperty("pozzo.keystore.path")
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = localProperties.getProperty("pozzo.keystore.password")
+                keyAlias = localProperties.getProperty("pozzo.keystore.alias")
+                keyPassword = localProperties.getProperty("pozzo.keystore.keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             optimization {
                 enable = false
             }
+            if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
