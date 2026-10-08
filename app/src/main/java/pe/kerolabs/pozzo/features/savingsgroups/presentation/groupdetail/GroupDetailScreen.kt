@@ -18,9 +18,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.PersonAddAlt
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -36,6 +40,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -51,8 +56,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import pe.kerolabs.pozzo.core.designsystem.components.InitialsAvatar
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoOutlinedButton
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoPrimaryButton
@@ -60,6 +69,7 @@ import pe.kerolabs.pozzo.core.designsystem.components.PozzoTextButton
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoTextField
 import pe.kerolabs.pozzo.core.designsystem.components.StatusChip
 import pe.kerolabs.pozzo.core.designsystem.components.SummaryCard
+import pe.kerolabs.pozzo.core.designsystem.components.TabLabel
 import pe.kerolabs.pozzo.core.designsystem.theme.PozzoThemeExtras
 import pe.kerolabs.pozzo.core.format.formatMediumDate
 import pe.kerolabs.pozzo.core.format.formatSoles
@@ -77,9 +87,13 @@ import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.periodicityT
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.shortCutoffLabel
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.turnMethodLabel
 
+/** How often the group is read again while it waits to start, so members who join show up on their own. */
+private const val LIVE_REFRESH_MILLIS = 15_000L
+
 /**
  * E1 for the organizer and E9 for a participant: the group with its members, turns and rules, and
  * what is still missing to start it. E2, adding a member without the application, opens as a sheet.
+ * Before it starts, the organizer can also edit it or delete it; [onClosed] leaves when it no longer exists.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,6 +102,8 @@ fun GroupDetailScreen(
     onAssignTurns: (groupId: String, seats: Int) -> Unit,
     onStartGroup: (groupId: String) -> Unit,
     onOpenPot: (groupId: String) -> Unit,
+    onEditGroup: (groupId: String) -> Unit,
+    onClosed: () -> Unit,
     onShowInvitation: (groupName: String, invitation: Invitation) -> Unit,
     viewModel: GroupDetailViewModel = hiltViewModel(),
 ) {
@@ -99,6 +115,7 @@ fun GroupDetailScreen(
         viewModel.load()
         onPauseOrDispose { }
     }
+    LaunchedEffect(state.closed) { if (state.closed) onClosed() }
     LaunchedEffect(state.message) {
         state.message?.let {
             snackbar.showSnackbar(it)
@@ -117,6 +134,20 @@ fun GroupDetailScreen(
     val detail = state.detail
     val group = detail?.group
     val canEdit = group != null && group.isOrganizer && !group.isStarted
+
+    // While the group waits to start, it is read again every few seconds on screen: members join from their phones.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val waitingToStart = group != null && !group.isStarted
+    LaunchedEffect(waitingToStart) {
+        if (waitingToStart) {
+            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                while (true) {
+                    delay(LIVE_REFRESH_MILLIS)
+                    viewModel.load()
+                }
+            }
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -141,10 +172,29 @@ fun GroupDetailScreen(
                             }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                 DropdownMenuItem(
+                                    text = { Text("Editar junta") },
+                                    leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
+                                    onClick = {
+                                        menuOpen = false
+                                        onEditGroup(viewModel.groupId)
+                                    },
+                                )
+                                DropdownMenuItem(
                                     text = { Text("Invitar integrantes") },
+                                    leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null) },
                                     onClick = {
                                         menuOpen = false
                                         viewModel.invite()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Eliminar junta", color = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = {
+                                        Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                    },
+                                    onClick = {
+                                        menuOpen = false
+                                        viewModel.askToDelete()
                                     },
                                 )
                             }
@@ -203,6 +253,15 @@ fun GroupDetailScreen(
                 contentPadding = padding,
             )
         }
+    }
+
+    if (state.confirmingDelete && group != null) {
+        DeleteGroupDialog(
+            groupName = group.name,
+            deleting = state.isDeleting,
+            onConfirm = viewModel::delete,
+            onDismiss = viewModel::dismissDelete,
+        )
     }
 
     state.addMember?.let { form ->
@@ -282,7 +341,7 @@ private fun DetailContent(
                     Tab(
                         selected = tab == option,
                         onClick = { onSelectTab(option) },
-                        text = { Text(option.label, style = MaterialTheme.typography.titleMedium) },
+                        text = { TabLabel(option.label) },
                         selectedContentColor = colors.primary,
                         unselectedContentColor = colors.onSurfaceVariant,
                     )
@@ -401,6 +460,27 @@ private fun MemberRow(member: Member, canRemove: Boolean, onRemove: () -> Unit) 
             )
         }
     }
+}
+
+@Composable
+private fun DeleteGroupDialog(groupName: String, deleting: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = { if (!deleting) onDismiss() },
+        icon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
+        title = { Text("¿Eliminar $groupName?") },
+        text = {
+            Text(
+                "Se borran sus integrantes, sus turnos y su invitación. A quienes usan Pozzo les llegará un aviso. " +
+                    "No se puede deshacer.",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = !deleting) {
+                Text("Eliminar", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !deleting) { Text("Cancelar") } },
+    )
 }
 
 @Composable

@@ -66,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.kerolabs.pozzo.core.designsystem.components.InitialsAvatar
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoPrimaryButton
 import pe.kerolabs.pozzo.core.designsystem.components.StatusChip
+import pe.kerolabs.pozzo.core.designsystem.components.TabLabel
 import pe.kerolabs.pozzo.core.designsystem.theme.PozzoThemeExtras
 import pe.kerolabs.pozzo.core.format.formatShortDate
 import pe.kerolabs.pozzo.features.compliancehistory.domain.ComplianceSummary
@@ -147,8 +148,8 @@ private fun GroupHistory(state: HistoryUiState, viewModel: HistoryViewModel, onM
             }
             Spacer(Modifier.height(8.dp))
             PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.surface) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Aportes", style = MaterialTheme.typography.titleMedium) })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Integrantes", style = MaterialTheme.typography.titleMedium) })
+                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { TabLabel("Aportes") })
+                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { TabLabel("Integrantes") })
             }
             val cycle = state.cycle
             if (cycle == null) {
