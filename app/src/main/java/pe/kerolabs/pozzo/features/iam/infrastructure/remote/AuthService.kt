@@ -10,6 +10,11 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
 
+/**
+ * Retrofit REST client defining API contracts for authentication, member profiles, and session recovery.
+ *
+ * Base endpoint mapping corresponds to backend IAM routes under `/auth` and `/members`.
+ */
 interface AuthService {
 
     @POST("auth/codes")

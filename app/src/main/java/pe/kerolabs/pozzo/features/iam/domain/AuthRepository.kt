@@ -2,6 +2,13 @@ package pe.kerolabs.pozzo.features.iam.domain
 
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Contract defining operations for Identity and Access Management (IAM).
+ *
+ * Encapsulates authentication flows via phone SMS challenges, user registration,
+ * profile retrieval and updates, persistent session tracking, avatar management,
+ * and multi-step account recovery via verified email addresses.
+ */
 interface AuthRepository {
 
     /** True while there is an open session on this phone. */
@@ -16,17 +23,43 @@ interface AuthRepository {
     /** The visual theme chosen by the member, kept locally so the app opens with it. */
     val theme: Flow<ThemePreference>
 
+    /**
+     * Dispatches an SMS verification challenge code to the given [phoneNumber].
+     *
+     * @param phoneNumber Nine-digit local phone number.
+     * @return Result containing code expiry and resend cooldown timestamps.
+     */
     suspend fun requestCode(phoneNumber: String): Result<CodeRequest>
 
+    /**
+     * Validates the received verification code for the phone number.
+     *
+     * @param phoneNumber Nine-digit local phone number.
+     * @param code Six-digit numeric OTP code.
+     * @return Verification status indicating whether registration is needed or user is signed in.
+     */
     suspend fun verifyCode(phoneNumber: String, code: String): Result<Verification>
 
+    /**
+     * Completes user registration with display name and accepted terms.
+     *
+     * @param registrationToken Temporary token issued during verification.
+     * @param displayName Member's full or preferred name.
+     * @param termsAccepted Whether legal terms were accepted.
+     */
     suspend fun completeRegistration(registrationToken: String, displayName: String, termsAccepted: Boolean): Result<Profile>
 
+    /**
+     * Retrieves the current authenticated member's profile.
+     */
     suspend fun getProfile(): Result<Profile>
 
     /** Reads the current profile, applies [change] and saves the result. */
     suspend fun updateProfile(change: (Profile) -> Profile): Result<Profile>
 
+    /**
+     * Closes the active session on this device and informs the server.
+     */
     suspend fun signOut(): Result<Unit>
 
     /** Uploads a JPEG as the profile photo; the previous one is deleted. */
