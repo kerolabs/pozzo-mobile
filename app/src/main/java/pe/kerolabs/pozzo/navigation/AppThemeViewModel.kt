@@ -10,7 +10,14 @@ import kotlinx.coroutines.flow.stateIn
 import pe.kerolabs.pozzo.features.iam.application.ObserveThemeUseCase
 import pe.kerolabs.pozzo.features.iam.domain.ThemePreference
 
-/** The theme the member chose (I2), applied to the whole app. */
+/**
+ * ViewModel responsible for managing application-wide UI theme preferences (I2).
+ *
+ * Exposes a reactive [ThemePreference] stream observed by the root theme provider
+ * to toggle between Light, Dark, or System default modes across all screens.
+ *
+ * @param observeTheme Use case observing persistent theme choices from DataStore.
+ */
 @HiltViewModel
 class AppThemeViewModel @Inject constructor(observeTheme: ObserveThemeUseCase) : ViewModel() {
     val theme: StateFlow<ThemePreference> =

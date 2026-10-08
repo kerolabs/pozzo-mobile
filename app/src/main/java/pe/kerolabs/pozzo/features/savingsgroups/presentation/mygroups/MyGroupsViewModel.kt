@@ -19,6 +19,16 @@ import pe.kerolabs.pozzo.features.savingsgroups.application.ObserveMyGroupsUseCa
 import pe.kerolabs.pozzo.features.savingsgroups.application.RefreshMyGroupsUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.domain.SavingsGroup
 
+/**
+ * UI state for the member's groups overview screen (screens B1, B2, B3).
+ *
+ * @property displayName User's full display name.
+ * @property photoUrl URL of the user's remote profile avatar.
+ * @property groups List of savings groups the user participates in or organizes.
+ * @property isRefreshing Whether a remote sync operation is currently active.
+ * @property errorMessage Human-readable error message to display in the snackbar, if any.
+ * @property loadedOnce Flag indicating at least one data fetch has successfully completed.
+ */
 data class MyGroupsUiState(
     val displayName: String = "",
     val photoUrl: String? = null,
@@ -33,6 +43,18 @@ data class MyGroupsUiState(
 
 private data class RefreshState(val isRefreshing: Boolean, val errorMessage: String?, val loadedOnce: Boolean)
 
+/**
+ * ViewModel managing the savings groups dashboard screen.
+ *
+ * Combines member profile information, reactive groups storage, and refresh states into a single [MyGroupsUiState].
+ * Automatically listens for incoming push notification deep links related to groups to refresh lists silently.
+ *
+ * @param observeMyGroups Use case streaming local database state of the user's savings groups.
+ * @param observeDisplayName Use case streaming the user's formatted name.
+ * @param observePhotoUrl Use case streaming the user's profile picture URL.
+ * @param refreshMyGroups Use case fetching updated group lists from the remote API.
+ * @param incomingPushes Reactive channel providing push notification intents received by the app.
+ */
 @HiltViewModel
 class MyGroupsViewModel @Inject constructor(
     observeMyGroups: ObserveMyGroupsUseCase,
