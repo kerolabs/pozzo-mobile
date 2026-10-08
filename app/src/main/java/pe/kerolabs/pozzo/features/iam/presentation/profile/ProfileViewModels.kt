@@ -1,5 +1,6 @@
 package pe.kerolabs.pozzo.features.iam.presentation.profile
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,8 +14,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kerolabs.pozzo.core.network.userMessage
 import pe.kerolabs.pozzo.features.contributions.application.ClearLocalContributionsUseCase
+import pe.kerolabs.pozzo.features.iam.application.ChangeProfilePhotoUseCase
 import pe.kerolabs.pozzo.features.iam.application.GetProfileUseCase
 import pe.kerolabs.pozzo.features.iam.application.ObserveThemeUseCase
+import pe.kerolabs.pozzo.features.iam.application.RemoveProfilePhotoUseCase
 import pe.kerolabs.pozzo.features.iam.application.SignOutUseCase
 import pe.kerolabs.pozzo.features.iam.application.UpdateBackupEmailUseCase
 import pe.kerolabs.pozzo.features.iam.application.UpdateDisplayNameUseCase
@@ -29,6 +32,7 @@ data class ProfileUiState(
     val profile: Profile? = null,
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
+    val isUploadingPhoto: Boolean = false,
     val errorMessage: String? = null,
 )
 
@@ -43,6 +47,8 @@ class ProfileViewModel @Inject constructor(
     private val clearLocalGroups: ClearLocalGroupsUseCase,
     private val clearLocalContributions: ClearLocalContributionsUseCase,
     private val unregisterDevice: UnregisterDeviceUseCase,
+    private val changeProfilePhoto: ChangeProfilePhotoUseCase,
+    private val removeProfilePhoto: RemoveProfilePhotoUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileUiState())
@@ -63,6 +69,20 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun saveWalletNumber(digits: String) = save { updateWalletNumber(digits) }
+
+    fun changePhoto(image: Uri) = savePhoto { changeProfilePhoto(image) }
+
+    fun removePhoto() = savePhoto { removeProfilePhoto() }
+
+    private fun savePhoto(update: suspend () -> Result<Profile>) {
+        if (_state.value.isUploadingPhoto) return
+        viewModelScope.launch {
+            _state.update { it.copy(isUploadingPhoto = true, errorMessage = null) }
+            update()
+                .onSuccess { updated -> _state.update { it.copy(profile = updated, isUploadingPhoto = false) } }
+                .onFailure { error -> _state.update { it.copy(isUploadingPhoto = false, errorMessage = error.userMessage()) } }
+        }
+    }
 
     fun saveBackupEmail(email: String) = save { updateBackupEmail(email) }
 

@@ -10,6 +10,9 @@ interface AuthRepository {
     /** The name of the member signed in, kept locally to greet them without a request. */
     val displayName: Flow<String?>
 
+    /** The photo of the member, kept locally to show it without a request. */
+    val photoUrl: Flow<String?>
+
     /** The visual theme chosen by the member, kept locally so the app opens with it. */
     val theme: Flow<ThemePreference>
 
@@ -25,6 +28,11 @@ interface AuthRepository {
     suspend fun updateProfile(change: (Profile) -> Profile): Result<Profile>
 
     suspend fun signOut(): Result<Unit>
+
+    /** Uploads a JPEG as the profile photo; the previous one is deleted. */
+    suspend fun changePhoto(jpeg: ByteArray): Result<Profile>
+
+    suspend fun removePhoto(): Result<Profile>
 
     /** Recovery, step 1: a code to the backup email. The answer is the same if no account has it. */
     suspend fun requestRecoveryCode(email: String): Result<RecoveryCodeRequest>

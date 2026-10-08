@@ -1,6 +1,21 @@
 package pe.kerolabs.pozzo.features.iam.presentation.profile
 
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.core.content.FileProvider
+import java.io.File
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -71,6 +86,14 @@ fun ProfileScreen(onTheme: () -> Unit, onChangePhone: () -> Unit, viewModel: Pro
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var editing by remember { mutableStateOf<ProfileField?>(null) }
+    var choosingPhoto by remember { mutableStateOf(false) }
+    var cameraPhoto by rememberSaveable { mutableStateOf<Uri?>(null) }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(viewModel::changePhoto)
+    }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
+        if (taken) cameraPhoto?.let(viewModel::changePhoto)
+    }
     LifecycleResumeEffect(Unit) {
         viewModel.load()
         onPauseOrDispose { }
@@ -96,11 +119,11 @@ fun ProfileScreen(onTheme: () -> Unit, onChangePhone: () -> Unit, viewModel: Pro
                 .padding(horizontal = 16.dp, vertical = 16.dp),
         ) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                InitialsAvatar(
+                ProfilePhoto(
                     name = profile.displayName,
-                    size = 80.dp,
-                    background = MaterialTheme.colorScheme.primaryContainer,
-                    content = MaterialTheme.colorScheme.onPrimaryContainer,
+                    photoUrl = profile.photoUrl,
+                    isUploading = state.isUploadingPhoto,
+                    onClick = { choosingPhoto = true },
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(profile.displayName, style = MaterialTheme.typography.headlineSmall)
@@ -159,6 +182,28 @@ fun ProfileScreen(onTheme: () -> Unit, onChangePhone: () -> Unit, viewModel: Pro
         }
     }
 
+    if (choosingPhoto) {
+        PhotoOptions(
+            hasPhoto = state.profile?.photoUrl != null,
+            onDismiss = { choosingPhoto = false },
+            onGallery = {
+                choosingPhoto = false
+                gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onCamera = {
+                choosingPhoto = false
+                val dir = File(context.cacheDir, "photos").apply { mkdirs() }
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", File(dir, "profile.jpg"))
+                cameraPhoto = uri
+                camera.launch(uri)
+            },
+            onRemove = {
+                choosingPhoto = false
+                viewModel.removePhoto()
+            },
+        )
+    }
+
     val profile = state.profile
     when (editing) {
         ProfileField.NAME -> EditDialog(
@@ -204,6 +249,62 @@ fun ProfileScreen(onTheme: () -> Unit, onChangePhone: () -> Unit, viewModel: Pro
 }
 
 private enum class ProfileField { NAME, WALLET, EMAIL }
+
+/** The member's photo, or the initials, with a camera badge that invites to change it. */
+@Composable
+private fun ProfilePhoto(name: String, photoUrl: String?, isUploading: Boolean, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Box(contentAlignment = Alignment.BottomEnd) {
+        Box(contentAlignment = Alignment.Center) {
+            InitialsAvatar(
+                name = name,
+                size = 96.dp,
+                background = colors.primaryContainer,
+                content = colors.onPrimaryContainer,
+                photoUrl = photoUrl,
+                modifier = Modifier.clickable(onClickLabel = "Cambiar foto", onClick = onClick, enabled = !isUploading),
+            )
+            if (isUploading) CircularProgressIndicator()
+        }
+        Box(
+            Modifier
+                .size(32.dp)
+                .background(colors.secondaryContainer, CircleShape)
+                .border(2.dp, colors.surface, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.PhotoCamera, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PhotoOptions(
+    hasPhoto: Boolean,
+    onDismiss: () -> Unit,
+    onGallery: () -> Unit,
+    onCamera: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
+            Text("Foto de perfil", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Tu grupo te reconoce más fácil. Se guarda recortada en cuadrado.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            ProfileRow(Icons.Outlined.Image, "Elegir de la galería", null, Icons.AutoMirrored.Filled.KeyboardArrowRight, onGallery)
+            ProfileRow(Icons.Outlined.PhotoCamera, "Tomar foto", null, Icons.AutoMirrored.Filled.KeyboardArrowRight, onCamera)
+            if (hasPhoto) {
+                ProfileRow(Icons.Outlined.Delete, "Quitar foto", null, Icons.AutoMirrored.Filled.KeyboardArrowRight, onRemove)
+            }
+        }
+    }
+}
 
 @Composable
 private fun ProfileRow(icon: ImageVector, title: String, subtitle: String?, trailing: ImageVector, onClick: () -> Unit) {
