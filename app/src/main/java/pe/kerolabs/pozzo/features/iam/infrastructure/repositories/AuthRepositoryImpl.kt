@@ -5,6 +5,9 @@ import java.time.Instant
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import pe.kerolabs.pozzo.core.network.apiCall
 import pe.kerolabs.pozzo.features.iam.domain.AuthRepository
 import pe.kerolabs.pozzo.features.iam.domain.CodeRequest
@@ -38,6 +41,8 @@ class AuthRepositoryImpl @Inject constructor(
 
     override val theme: Flow<ThemePreference> = sessionManager.theme.map(ThemePreference::of)
 
+    override val photoUrl: Flow<String?> = sessionManager.photoUrl
+
     override suspend fun requestCode(phoneNumber: String): Result<CodeRequest> =
         apiCall { service.requestCode(RequestCodeRequestDto(phoneNumber)) }.map { dto ->
             // The backend answers in E.164; the app keeps the nine digits it sends back to verify.
@@ -51,6 +56,7 @@ class AuthRepositoryImpl @Inject constructor(
                 Verification.RegistrationRequired(phoneNumber, dto.registrationToken.orEmpty())
             } else {
                 sessionManager.save(session.token, session.profile.displayName, session.profile.theme)
+                sessionManager.updateProfile(session.profile.displayName, session.profile.theme, session.profile.photoUrl)
                 Verification.SignedIn(session.profile.toDomain())
             }
         }
@@ -64,14 +70,11 @@ class AuthRepositoryImpl @Inject constructor(
             service.register(RegisterRequestDto(registrationToken, displayName, null, termsAccepted, deviceLabel))
         }.map { dto ->
             sessionManager.save(dto.token, dto.profile.displayName, dto.profile.theme)
-            dto.profile.toDomain()
+            dto.profile.keep()
         }
 
     override suspend fun getProfile(): Result<Profile> =
-        apiCall { service.getProfile() }.map { dto ->
-            sessionManager.updateProfile(dto.displayName, dto.theme)
-            dto.toDomain()
-        }
+        apiCall { service.getProfile() }.map { it.keep() }
 
     override suspend fun updateProfile(change: (Profile) -> Profile): Result<Profile> {
         // The backend replaces the whole profile, so the fields that do not change are sent back as they are.
@@ -83,10 +86,24 @@ class AuthRepositoryImpl @Inject constructor(
             walletNumber = updated.walletNumber?.ifBlank { null },
             backupEmail = updated.backupEmail?.ifBlank { null },
         )
-        return apiCall { service.updateProfile(request) }.map { dto ->
-            sessionManager.updateProfile(dto.displayName, dto.theme)
-            dto.toDomain()
-        }
+        return apiCall { service.updateProfile(request) }.map { it.keep() }
+    }
+
+    override suspend fun changePhoto(jpeg: ByteArray): Result<Profile> {
+        val part = MultipartBody.Part.createFormData(
+            "photo",
+            "photo.jpg",
+            jpeg.toRequestBody("image/jpeg".toMediaType()),
+        )
+        return apiCall { service.changePhoto(part) }.map { it.keep() }
+    }
+
+    override suspend fun removePhoto(): Result<Profile> = apiCall { service.removePhoto() }.map { it.keep() }
+
+    /** Keeps on the phone what is shown without a request: name, theme and photo. */
+    private suspend fun ProfileDto.keep(): Profile {
+        sessionManager.updateProfile(displayName, theme, photoUrl)
+        return toDomain()
     }
 
     override suspend fun requestRecoveryCode(email: String): Result<RecoveryCodeRequest> =
@@ -107,7 +124,7 @@ class AuthRepositoryImpl @Inject constructor(
             service.recoverAccount(RecoverAccountRequestDto(recoveryToken, phoneNumber, code, deviceLabel))
         }.map { dto ->
             sessionManager.save(dto.token, dto.profile.displayName, dto.profile.theme)
-            dto.profile.toDomain()
+            dto.profile.keep()
         }
 
     override suspend fun requestPhoneChangeCode(phoneNumber: String): Result<CodeRequest> =
@@ -116,7 +133,7 @@ class AuthRepositoryImpl @Inject constructor(
         }
 
     override suspend fun changePhoneNumber(phoneNumber: String, code: String): Result<Profile> =
-        apiCall { service.changePhoneNumber(ChangePhoneNumberRequestDto(phoneNumber, code)) }.map { it.toDomain() }
+        apiCall { service.changePhoneNumber(ChangePhoneNumberRequestDto(phoneNumber, code)) }.map { it.keep() }
 
     override suspend fun signOut(): Result<Unit> {
         // The session is closed on the phone even if the backend cannot be reached.

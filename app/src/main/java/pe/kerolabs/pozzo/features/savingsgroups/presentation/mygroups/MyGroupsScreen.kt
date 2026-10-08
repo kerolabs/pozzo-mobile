@@ -108,6 +108,7 @@ fun MyGroupsScreen(
                     Header(
                         firstName = state.firstName,
                         displayName = state.displayName,
+                        photoUrl = state.photoUrl,
                         onOpenProfile = onOpenProfile,
                     )
                 }
@@ -133,7 +134,7 @@ fun MyGroupsScreen(
 }
 
 @Composable
-private fun Header(firstName: String, displayName: String, onOpenProfile: () -> Unit) {
+private fun Header(firstName: String, displayName: String, photoUrl: String?, onOpenProfile: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
             if (firstName.isNotBlank()) {
@@ -151,6 +152,7 @@ private fun Header(firstName: String, displayName: String, onOpenProfile: () -> 
             size = 56.dp,
             background = MaterialTheme.colorScheme.primaryContainer,
             content = MaterialTheme.colorScheme.onPrimaryContainer,
+            photoUrl = photoUrl,
         )
     }
 }

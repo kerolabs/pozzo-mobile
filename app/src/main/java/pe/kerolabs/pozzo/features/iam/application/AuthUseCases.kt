@@ -1,11 +1,13 @@
 package pe.kerolabs.pozzo.features.iam.application
 
+import android.net.Uri
 import android.util.Patterns
 import javax.inject.Inject
 import pe.kerolabs.pozzo.features.iam.domain.AuthRepository
 import pe.kerolabs.pozzo.features.iam.domain.PhoneNumbers
 import pe.kerolabs.pozzo.features.iam.domain.Profile
 import pe.kerolabs.pozzo.features.iam.domain.ThemePreference
+import pe.kerolabs.pozzo.features.iam.infrastructure.local.ProfilePhotoReader
 
 class RequestCodeUseCase @Inject constructor(private val repository: AuthRepository) {
     suspend operator fun invoke(phoneNumber: String) = repository.requestCode(phoneNumber)
@@ -52,6 +54,25 @@ class UpdateBackupEmailUseCase @Inject constructor(private val repository: AuthR
         }
         return repository.updateProfile { it.copy(backupEmail = value.ifEmpty { null }) }
     }
+}
+
+class ObservePhotoUrlUseCase @Inject constructor(private val repository: AuthRepository) {
+    operator fun invoke() = repository.photoUrl
+}
+
+class ChangeProfilePhotoUseCase @Inject constructor(
+    private val repository: AuthRepository,
+    private val reader: ProfilePhotoReader,
+) {
+    suspend operator fun invoke(image: Uri): Result<Profile> {
+        val jpeg = runCatching { reader.read(image) }
+            .getOrElse { return Result.failure(IllegalArgumentException("No pudimos leer esa imagen. Prueba con otra.")) }
+        return repository.changePhoto(jpeg)
+    }
+}
+
+class RemoveProfilePhotoUseCase @Inject constructor(private val repository: AuthRepository) {
+    suspend operator fun invoke() = repository.removePhoto()
 }
 
 class ObserveThemeUseCase @Inject constructor(private val repository: AuthRepository) {

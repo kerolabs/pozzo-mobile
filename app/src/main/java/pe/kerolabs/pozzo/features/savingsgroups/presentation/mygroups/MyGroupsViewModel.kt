@@ -13,12 +13,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kerolabs.pozzo.core.network.userMessage
 import pe.kerolabs.pozzo.features.iam.application.ObserveDisplayNameUseCase
+import pe.kerolabs.pozzo.features.iam.application.ObservePhotoUrlUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.ObserveMyGroupsUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.RefreshMyGroupsUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.domain.SavingsGroup
 
 data class MyGroupsUiState(
     val displayName: String = "",
+    val photoUrl: String? = null,
     val groups: List<SavingsGroup> = emptyList(),
     val isRefreshing: Boolean = true,
     val errorMessage: String? = null,
@@ -34,6 +36,7 @@ private data class RefreshState(val isRefreshing: Boolean, val errorMessage: Str
 class MyGroupsViewModel @Inject constructor(
     observeMyGroups: ObserveMyGroupsUseCase,
     observeDisplayName: ObserveDisplayNameUseCase,
+    observePhotoUrl: ObservePhotoUrlUseCase,
     private val refreshMyGroups: RefreshMyGroupsUseCase,
 ) : ViewModel() {
 
@@ -41,11 +44,13 @@ class MyGroupsViewModel @Inject constructor(
 
     val state: StateFlow<MyGroupsUiState> = combine(
         observeDisplayName(),
+        observePhotoUrl(),
         observeMyGroups(),
         refresh,
-    ) { name, groups, refreshState ->
+    ) { name, photoUrl, groups, refreshState ->
         MyGroupsUiState(
             displayName = name.orEmpty(),
+            photoUrl = photoUrl,
             groups = groups,
             isRefreshing = refreshState.isRefreshing,
             errorMessage = refreshState.errorMessage,

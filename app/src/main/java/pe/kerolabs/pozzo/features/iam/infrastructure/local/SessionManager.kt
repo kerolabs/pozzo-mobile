@@ -29,6 +29,7 @@ class SessionManager @Inject constructor(
         val TOKEN = stringPreferencesKey("token")
         val DISPLAY_NAME = stringPreferencesKey("display_name")
         val THEME = stringPreferencesKey("theme")
+        val PHOTO_URL = stringPreferencesKey("photo_url")
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -45,6 +46,8 @@ class SessionManager @Inject constructor(
 
     val theme: Flow<String?> = dataStore.data.map { it[THEME] }
 
+    val photoUrl: Flow<String?> = dataStore.data.map { it[PHOTO_URL] }
+
     suspend fun save(token: String, displayName: String, theme: String) {
         dataStore.edit {
             it[TOKEN] = token
@@ -55,10 +58,11 @@ class SessionManager @Inject constructor(
         loaded = true
     }
 
-    suspend fun updateProfile(displayName: String, theme: String) {
+    suspend fun updateProfile(displayName: String, theme: String, photoUrl: String?) {
         dataStore.edit {
             it[DISPLAY_NAME] = displayName
             it[THEME] = theme
+            if (photoUrl != null) it[PHOTO_URL] = photoUrl else it.remove(PHOTO_URL)
         }
     }
 

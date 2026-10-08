@@ -1,10 +1,14 @@
 package pe.kerolabs.pozzo.features.iam.infrastructure.remote
 
+import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Part
 
 interface AuthService {
 
@@ -37,6 +41,13 @@ interface AuthService {
 
     @PUT("members/me/profile")
     suspend fun updateProfile(@Body request: UpdateProfileRequestDto): Response<ProfileDto>
+
+    @Multipart
+    @PUT("members/me/profile/photo")
+    suspend fun changePhoto(@Part photo: MultipartBody.Part): Response<ProfileDto>
+
+    @DELETE("members/me/profile/photo")
+    suspend fun removePhoto(): Response<ProfileDto>
 
     @POST("members/me/phone-number/codes")
     suspend fun requestPhoneChangeCode(@Body request: RequestCodeRequestDto): Response<CodeRequestedDto>
