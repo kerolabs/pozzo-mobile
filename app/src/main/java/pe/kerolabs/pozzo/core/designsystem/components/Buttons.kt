@@ -19,6 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import pe.kerolabs.pozzo.core.designsystem.theme.PillShape
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
+
 
 private val ButtonHeight = 48.dp
 
@@ -40,7 +43,11 @@ fun PozzoPrimaryButton(
         // While loading the button keeps its color so the spinner is visible.
         enabled = enabled || loading,
         shape = PillShape,
-        modifier = modifier.fillMaxWidth().height(ButtonHeight),
+        modifier = modifier.fillMaxWidth().height(ButtonHeight).semantics{
+            if(loading){
+                stateDescription = "Cargando"
+            }
+        },
     ) {
         if (loading) {
             CircularProgressIndicator(

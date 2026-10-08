@@ -111,6 +111,20 @@ private fun NavController.openDeepLink(deepLink: String) {
     }
 }
 
+/**
+ * Root navigation host composable for the Pozzo application.
+ *
+ * Configures the primary [NavHost] routing, listening to authentication session changes via [SessionViewModel]
+ * to direct users to either the authentication flow ([IamNavGraphRoute]) or the main application
+ * ([SavingsGroupsNavGraphRoute]). Manages top-level destinations with Material 3 [NavigationBar],
+ * handles deep links from push notifications, and coordinates notification badge counters.
+ *
+ * @param navController The navigation controller coordinating app screens.
+ * @param deepLink An optional incoming deep link URI to navigate directly upon valid session.
+ * @param onDeepLinkHandled Callback invoked once the incoming deep link has been consumed.
+ * @param sessionViewModel ViewModel providing real-time session authentication status.
+ * @param pushViewModel ViewModel managing push notification state and unread badge count.
+ */
 @Composable
 fun AppNavHost(
     navController: NavHostController,

@@ -5,8 +5,12 @@ import java.io.IOException
 import retrofit2.Response
 
 /**
- * An error answered by the Pozzo backend: the code tells the cases apart (e.g. INVALID_VERIFICATION_CODE)
- * and the message is already in Spanish.
+ * Represents an application or server-side error returned by the Pozzo REST backend.
+ *
+ * @property status HTTP status code returned by the server, or 0 for network connection errors.
+ * @property code Machine-readable error code (e.g. `INVALID_VERIFICATION_CODE`, `NETWORK_ERROR`).
+ * @property message User-facing localized description of the error in Spanish.
+ * @property details Optional technical or validation details explaining field-level failures.
  */
 class ApiException(
     val status: Int,
@@ -15,6 +19,10 @@ class ApiException(
     val details: String? = null,
 ) : Exception(message)
 
+/**
+ * The shape of the error body the backend sends; every field is optional because a proxy or the
+ * server itself may answer with something else.
+ */
 private data class ErrorBody(val code: String?, val message: String?, val details: String?)
 
 private val gson = Gson()
@@ -26,6 +34,7 @@ private val gson = Gson()
 suspend fun <T> apiCall(call: suspend () -> Response<T>): Result<T> = try {
     val response = call()
     if (response.isSuccessful) {
+        // Endpoints that answer 204 have no body, so Unit stands in for it.
         @Suppress("UNCHECKED_CAST")
         Result.success(response.body() ?: Unit as T)
     } else {

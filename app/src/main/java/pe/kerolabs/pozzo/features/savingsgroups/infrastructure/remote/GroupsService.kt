@@ -9,6 +9,12 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 
+/**
+ * Retrofit REST client defining API contracts for savings groups (juntas) management.
+ *
+ * Provides endpoints for group creation, updating rules and payment destinations,
+ * issuing invitation codes, managing participants, and scheduling turn payout dates.
+ */
 interface GroupsService {
 
     @GET("members/me/groups")

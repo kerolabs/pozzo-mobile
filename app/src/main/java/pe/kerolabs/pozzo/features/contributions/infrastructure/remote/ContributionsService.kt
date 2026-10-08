@@ -11,6 +11,12 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 
+/**
+ * Retrofit REST client defining API contracts for tracking cycles, contributions, and pot disbursements.
+ *
+ * Handles submission of payment receipts, cash payments, coverage loans,
+ * receipt image uploads for on-device OCR auditing, and organizer review validations.
+ */
 interface ContributionsService {
 
     @GET("groups/{groupId}/cycle")
