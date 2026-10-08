@@ -159,6 +159,7 @@ fun MemberOption(
     onClick: () -> Unit,
     isMe: Boolean = false,
     enabled: Boolean = true,
+    photoUrl: String? = null,
 ) {
     Row(
         Modifier
@@ -167,7 +168,7 @@ fun MemberOption(
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        InitialsAvatar(name = name, size = 40.dp)
+        InitialsAvatar(name = name, size = 40.dp, photoUrl = photoUrl)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(if (isMe) "$name (tú)" else name, style = MaterialTheme.typography.titleMedium)

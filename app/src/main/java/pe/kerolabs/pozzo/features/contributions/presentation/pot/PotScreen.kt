@@ -56,6 +56,7 @@ import pe.kerolabs.pozzo.features.contributions.domain.Period
 import pe.kerolabs.pozzo.features.contributions.domain.PeriodState
 import pe.kerolabs.pozzo.features.contributions.presentation.common.ContributionStateChip
 import pe.kerolabs.pozzo.features.contributions.presentation.common.LoadingOrError
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.rememberMemberPhotos
 
 /**
  * F1: the pot of the period in progress, the same for the organizer and the participants, with the
@@ -79,6 +80,7 @@ fun PotScreen(
     val cycle = state.cycle
     val period = state.period
     val groupId = viewModel.groupId
+    val photos = rememberMemberPhotos(groupId)
 
     LifecycleResumeEffect(Unit) {
         viewModel.load()
@@ -167,7 +169,7 @@ fun PotScreen(
             }
             items(period.members, key = { it.membershipId }) { member ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    InitialsAvatar(name = member.displayName, size = 40.dp)
+                    InitialsAvatar(name = member.displayName, size = 40.dp, photoUrl = photos[member.membershipId])
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(

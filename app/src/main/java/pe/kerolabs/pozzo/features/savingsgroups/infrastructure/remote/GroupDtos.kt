@@ -48,6 +48,7 @@ data class MemberDto(
     val me: Boolean,
     val phoneNumber: String?,
     val turnNumber: Int?,
+    val photoUrl: String?,
 )
 
 data class AddManualMemberRequestDto(val displayName: String, val phoneNumber: String?)
@@ -60,7 +61,14 @@ data class TurnCalendarDto(
     val turns: List<TurnDto>,
 )
 
-data class TurnDto(val turnNumber: Int, val membershipId: String, val displayName: String, val cutoffDate: String, val me: Boolean)
+data class TurnDto(
+    val turnNumber: Int,
+    val membershipId: String,
+    val displayName: String,
+    val cutoffDate: String,
+    val me: Boolean,
+    val photoUrl: String?,
+)
 
 data class AgreedTurnsRequestDto(val order: List<String>)
 

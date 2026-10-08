@@ -75,6 +75,7 @@ import pe.kerolabs.pozzo.features.contributions.domain.Cycle
 import pe.kerolabs.pozzo.features.contributions.domain.Period
 import pe.kerolabs.pozzo.features.contributions.domain.PeriodState
 import pe.kerolabs.pozzo.features.contributions.presentation.common.LoadingOrError
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.rememberMemberPhotos
 
 /**
  * Root of the History destination. The organizer of a started group sees who contributed in each period
@@ -155,7 +156,8 @@ private fun GroupHistory(state: HistoryUiState, viewModel: HistoryViewModel, onM
                 return@Column
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 16.dp)) {
-                if (tab == 0) ContributionsMatrix(cycle, state.periods) else MembersCompliance(state.members)
+                val photos = rememberMemberPhotos(state.selectedGroupId)
+                if (tab == 0) ContributionsMatrix(cycle, state.periods, photos) else MembersCompliance(state.members, photos)
             }
         }
     }
@@ -170,7 +172,7 @@ private fun groupSubtitle(cycle: Cycle?, current: Period?): String {
 
 /** K1: members in rows and periods in columns, with the state of each contribution. */
 @Composable
-private fun ContributionsMatrix(cycle: Cycle, periods: List<Period>) {
+private fun ContributionsMatrix(cycle: Cycle, periods: List<Period>, photos: Map<String, String>) {
     val colors = MaterialTheme.colorScheme
     val members = periods.lastOrNull()?.members.orEmpty()
     val byTurn = periods.associateBy { it.turnNumber }
@@ -189,7 +191,7 @@ private fun ContributionsMatrix(cycle: Cycle, periods: List<Period>) {
                 Spacer(Modifier.height(cell))
                 members.forEach { member ->
                     Row(Modifier.height(cell + 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        InitialsAvatar(name = member.displayName, size = 28.dp)
+                        InitialsAvatar(name = member.displayName, size = 28.dp, photoUrl = photos[member.membershipId])
                         Spacer(Modifier.width(8.dp))
                         Text(
                             member.displayName.substringBefore(' '),
@@ -274,11 +276,11 @@ private fun Figure(label: String, value: String, modifier: Modifier) {
 
 /** K2: every member with their contributions on time, across all their groups. */
 @Composable
-private fun MembersCompliance(members: List<MemberCompliance>) {
+private fun MembersCompliance(members: List<MemberCompliance>, photos: Map<String, String>) {
     val colors = MaterialTheme.colorScheme
     members.forEach { member ->
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            InitialsAvatar(name = member.displayName, size = 44.dp)
+            InitialsAvatar(name = member.displayName, size = 44.dp, photoUrl = photos[member.membershipId])
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(member.displayName, style = MaterialTheme.typography.titleMedium)

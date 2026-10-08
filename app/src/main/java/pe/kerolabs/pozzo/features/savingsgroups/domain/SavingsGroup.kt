@@ -60,6 +60,7 @@ data class Member(
     val isMe: Boolean,
     val phoneNumber: String?,
     val turnNumber: Int?,
+    val photoUrl: String? = null,
 )
 
 /**
@@ -71,6 +72,7 @@ data class Turn(
     val displayName: String,
     val cutoffDate: LocalDate,
     val isMe: Boolean,
+    val photoUrl: String? = null,
 )
 
 /**

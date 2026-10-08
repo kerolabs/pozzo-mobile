@@ -370,7 +370,7 @@ private fun MemberRow(member: Member, canRemove: Boolean, onRemove: () -> Unit) 
                 .padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            InitialsAvatar(name = member.displayName)
+            InitialsAvatar(name = member.displayName, photoUrl = member.photoUrl)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(

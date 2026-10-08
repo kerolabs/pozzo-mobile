@@ -64,6 +64,7 @@ import pe.kerolabs.pozzo.features.contributions.presentation.common.LoadingOrErr
 import pe.kerolabs.pozzo.features.contributions.presentation.common.MemberOption
 import pe.kerolabs.pozzo.features.contributions.presentation.common.fieldLabel
 import pe.kerolabs.pozzo.features.contributions.presentation.common.inconsistencyLabel
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.rememberMemberPhotos
 
 /** The common frame of the organizer's screens: top bar, scrollable body and actions at the bottom. */
 @Composable
@@ -97,6 +98,7 @@ fun ReviewsScreen(
     viewModel: ReviewsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val photos = rememberMemberPhotos(state.cycle?.groupId)
     LifecycleResumeEffect(Unit) {
         viewModel.load()
         onPauseOrDispose { }
@@ -124,7 +126,7 @@ fun ReviewsScreen(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                InitialsAvatar(name = contribution.memberName, size = 40.dp)
+                InitialsAvatar(name = contribution.memberName, size = 40.dp, photoUrl = photos[contribution.membershipId])
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(contribution.memberName, style = MaterialTheme.typography.titleMedium)
@@ -149,6 +151,7 @@ fun ReviewDetailScreen(
     viewModel: ReviewDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val photos = rememberMemberPhotos(state.cycle?.groupId)
     var note by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(Unit) { viewModel.load() }
     LaunchedEffect(state.decided) { if (state.decided != null) onDecided(state.reviews.size <= 1) }
@@ -186,7 +189,7 @@ fun ReviewDetailScreen(
             return@OrganizerScaffold
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            InitialsAvatar(name = contribution.memberName)
+            InitialsAvatar(name = contribution.memberName, photoUrl = photos[contribution.membershipId])
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(contribution.memberName, style = MaterialTheme.typography.titleMedium)
@@ -263,6 +266,7 @@ private fun CheckRow(title: String, detail: String, ok: Boolean) {
 @Composable
 fun CashScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: CashViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val photos = rememberMemberPhotos(state.cycle?.groupId)
     LaunchedEffect(state.done) { if (state.done != null) onDone() }
     val period = state.period
     OrganizerScaffold(
@@ -293,6 +297,7 @@ fun CashScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: CashViewModel 
                 subtitle = if (member.state == ContributionState.LATE) "Atrasado" else "Pendiente",
                 selected = state.selectedMember == member.membershipId,
                 onClick = { viewModel.onMemberSelected(member.membershipId) },
+                photoUrl = photos[member.membershipId],
             )
         }
         PozzoTextField(
@@ -311,6 +316,7 @@ fun CashScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: CashViewModel 
 @Composable
 fun CoverScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: CoverViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val photos = rememberMemberPhotos(state.cycle?.groupId)
     LaunchedEffect(state.done) { if (state.done != null) onDone() }
     val period = state.period
     OrganizerScaffold(
@@ -341,6 +347,7 @@ fun CoverScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: CoverViewMode
                 subtitle = if (member.state == ContributionState.LATE) "Atrasado" else "Pendiente",
                 selected = state.selectedMember == member.membershipId,
                 onClick = { viewModel.onMemberSelected(member.membershipId) },
+                photoUrl = photos[member.membershipId],
             )
         }
         Spacer(Modifier.height(4.dp))
@@ -352,6 +359,7 @@ fun CoverScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: CoverViewMode
                 isMe = member.isMe,
                 selected = state.coveredBy == member.membershipId,
                 onClick = { viewModel.onCoveredBySelected(member.membershipId) },
+                photoUrl = photos[member.membershipId],
             )
         }
         InfoBanner(
@@ -370,6 +378,7 @@ fun DeliverScreen(
     viewModel: DeliverViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val photos = rememberMemberPhotos(state.cycle?.groupId)
     val period = state.period
     val cycle = state.cycle
     LaunchedEffect(state.delivery) {

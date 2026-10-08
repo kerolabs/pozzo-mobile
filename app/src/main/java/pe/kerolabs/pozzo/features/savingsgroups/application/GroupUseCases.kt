@@ -71,6 +71,14 @@ class AssignAgreedTurnsUseCase @Inject constructor(private val repository: Savin
     suspend operator fun invoke(groupId: String, order: List<String>) = repository.assignAgreedTurns(groupId, order)
 }
 
+/** The photo of each member of a group, by membership; an empty map if it cannot be read. */
+class GetMemberPhotosUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String): Map<String, String> =
+        repository.getMembers(groupId).getOrNull().orEmpty()
+            .mapNotNull { member -> member.photoUrl?.let { member.membershipId to it } }
+            .toMap()
+}
+
 class GetTurnsUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
     suspend operator fun invoke(groupId: String) = repository.getTurns(groupId)
 }

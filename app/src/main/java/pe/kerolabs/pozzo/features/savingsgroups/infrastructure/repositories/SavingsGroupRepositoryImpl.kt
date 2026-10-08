@@ -142,6 +142,7 @@ class SavingsGroupRepositoryImpl @Inject constructor(
         isMe = me,
         phoneNumber = phoneNumber,
         turnNumber = turnNumber,
+        photoUrl = photoUrl,
     )
 
     private fun TurnCalendarDto.toDomain() = TurnCalendar(
@@ -149,7 +150,7 @@ class SavingsGroupRepositoryImpl @Inject constructor(
         drawSeed = drawSeed,
         assignedAt = assignedAt?.let(Instant::parse),
         potAmount = potAmount,
-        turns = turns.map { Turn(it.turnNumber, it.membershipId, it.displayName, LocalDate.parse(it.cutoffDate), it.me) },
+        turns = turns.map { Turn(it.turnNumber, it.membershipId, it.displayName, LocalDate.parse(it.cutoffDate), it.me, it.photoUrl) },
     )
 
     private fun GroupDto.toEntity() = GroupEntity(
