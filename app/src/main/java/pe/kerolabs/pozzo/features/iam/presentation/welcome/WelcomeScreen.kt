@@ -40,7 +40,13 @@ import pe.kerolabs.pozzo.core.designsystem.theme.PozzoTheme
 import pe.kerolabs.pozzo.core.designsystem.theme.PozzoThemeExtras
 
 /**
- * A1: welcome. Both actions start with the phone number; the invitation code is asked after signing in.
+ * Initial landing screen for unauthenticated users (A1).
+ *
+ * Introduces the Pozzo platform value proposition and offers primary onboarding actions:
+ * phone number authentication or direct entry using an invitation code.
+ *
+ * @param onContinueWithPhone Callback invoked when the user selects phone authentication.
+ * @param onHaveInvitationCode Callback invoked when the user indicates having a group invitation code.
  */
 @Composable
 fun WelcomeScreen(onContinueWithPhone: () -> Unit, onHaveInvitationCode: () -> Unit) {
@@ -81,7 +87,10 @@ fun WelcomeScreen(onContinueWithPhone: () -> Unit, onHaveInvitationCode: () -> U
 }
 
 /**
- * The members of a group around the pot, joined by the dashed ring of turns.
+ * Illustrative graphic composable displaying group members arranged in a circular formation
+ * around a central pot, joined by a dashed rotation ring.
+ *
+ * @param modifier Modifier applied to the outer layout container.
  */
 @Composable
 private fun GroupCircle(modifier: Modifier = Modifier) {
