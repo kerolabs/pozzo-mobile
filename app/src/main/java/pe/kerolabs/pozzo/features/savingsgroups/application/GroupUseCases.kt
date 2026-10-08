@@ -79,6 +79,10 @@ class GetMemberPhotosUseCase @Inject constructor(private val repository: Savings
             .toMap()
 }
 
+class GetMembersUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String) = repository.getMembers(groupId)
+}
+
 class GetTurnsUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
     suspend operator fun invoke(groupId: String) = repository.getTurns(groupId)
 }

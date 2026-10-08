@@ -34,6 +34,9 @@ class ComplianceRepositoryImpl @Inject constructor(
     override suspend fun shareMyHistory(): Result<ShareLink> =
         apiCall { service.shareMyHistory() }.map { ShareLink(it.token, it.url, Instant.parse(it.expiresAt)) }
 
+    override suspend fun getMemberSummary(accountId: String): Result<ComplianceSummary> =
+        apiCall { service.getMemberSummary(accountId) }.map { it.toDomain() }
+
     private fun ComplianceSummaryDto.toDomain() =
         ComplianceSummary(level, contributions, onTime, late, covered, rejected, dropouts, cyclesCompleted)
 }

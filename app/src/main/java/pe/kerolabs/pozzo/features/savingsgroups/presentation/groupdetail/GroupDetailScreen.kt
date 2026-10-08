@@ -21,8 +21,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.PersonAddAlt
+import androidx.compose.material.icons.outlined.PersonRemove
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -79,6 +80,7 @@ import pe.kerolabs.pozzo.features.savingsgroups.domain.Invitation
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Member
 import pe.kerolabs.pozzo.features.savingsgroups.domain.MembershipKind
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.ChecklistItem
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.MemberProfileSheet
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.ReadinessChecklist
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.TurnRow
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.cutoffLabel
@@ -110,6 +112,7 @@ fun GroupDetailScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var menuOpen by remember { mutableStateOf(false) }
+    var profileOf by remember { mutableStateOf<String?>(null) }
 
     LifecycleResumeEffect(Unit) {
         viewModel.load()
@@ -247,11 +250,26 @@ fun GroupDetailScreen(
                 detail = detail,
                 tab = state.tab,
                 onSelectTab = viewModel::selectTab,
-                onRemoveMember = viewModel::remove,
+                onOpenMember = { membershipId -> profileOf = membershipId },
                 onChangeTurns = { onAssignTurns(viewModel.groupId, detail.group.seats) },
                 canEdit = canEdit,
                 contentPadding = padding,
             )
+        }
+    }
+
+    profileOf?.let { membershipId ->
+        MemberProfileSheet(groupId = viewModel.groupId, membershipId = membershipId, onDismiss = { profileOf = null }) { member ->
+            if (canEdit && !member.isOrganizer) {
+                PozzoOutlinedButton(
+                    text = "Quitar de la junta",
+                    onClick = {
+                        profileOf = null
+                        viewModel.remove(member)
+                    },
+                    icon = Icons.Outlined.PersonRemove,
+                )
+            }
         }
     }
 
@@ -280,7 +298,7 @@ private fun DetailContent(
     detail: GroupDetail,
     tab: GroupDetailTab,
     onSelectTab: (GroupDetailTab) -> Unit,
-    onRemoveMember: (Member) -> Unit,
+    onOpenMember: (membershipId: String) -> Unit,
     onChangeTurns: () -> Unit,
     canEdit: Boolean,
     contentPadding: PaddingValues,
@@ -351,7 +369,7 @@ private fun DetailContent(
         }
         when (tab) {
             GroupDetailTab.MEMBERS -> items(detail.members, key = { it.membershipId }) { member ->
-                MemberRow(member = member, canRemove = canEdit && !member.isOrganizer, onRemove = { onRemoveMember(member) })
+                MemberRow(member = member, onOpen = { onOpenMember(member.membershipId) })
             }
             GroupDetailTab.TURNS -> {
                 if (detail.turns.turns.isEmpty()) {
@@ -370,6 +388,7 @@ private fun DetailContent(
                             name = if (turn.isMe) "${turn.displayName} (tú)" else turn.displayName,
                             cutoffDate = turn.cutoffDate,
                             highlighted = turn.isMe,
+                            modifier = Modifier.clickable { onOpenMember(turn.membershipId) },
                         )
                     }
                     if (canEdit) {
@@ -417,15 +436,14 @@ private fun DetailContent(
 }
 
 @Composable
-private fun MemberRow(member: Member, canRemove: Boolean, onRemove: () -> Unit) {
+private fun MemberRow(member: Member, onOpen: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val status = PozzoThemeExtras.statusColors
-    var menuOpen by remember { mutableStateOf(false) }
     Box {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = canRemove) { menuOpen = true }
+                .clickable(onClick = onOpen)
                 .padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -449,15 +467,6 @@ private fun MemberRow(member: Member, canRemove: Boolean, onRemove: () -> Unit) 
                 member.kind == MembershipKind.APP -> StatusChip("Usa Pozzo", colors.surfaceContainerHighest, colors.onSurfaceVariant)
                 else -> StatusChip("Sin la app", status.warningContainer, status.onWarningContainer)
             }
-        }
-        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            DropdownMenuItem(
-                text = { Text("Quitar de la junta") },
-                onClick = {
-                    menuOpen = false
-                    onRemove()
-                },
-            )
         }
     }
 }

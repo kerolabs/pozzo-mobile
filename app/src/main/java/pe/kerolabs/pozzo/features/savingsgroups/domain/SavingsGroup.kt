@@ -61,6 +61,8 @@ data class Member(
     val phoneNumber: String?,
     val turnNumber: Int?,
     val photoUrl: String? = null,
+    /** The account of a member who uses the application, to read their punctuality. */
+    val accountId: String? = null,
 )
 
 /**

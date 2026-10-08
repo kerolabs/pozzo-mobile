@@ -13,6 +13,9 @@ interface ComplianceService {
     @GET("groups/{groupId}/compliance")
     suspend fun getGroupCompliance(@Path("groupId") groupId: String): Response<List<MemberComplianceDto>>
 
+    @GET("members/{memberId}/compliance/summary")
+    suspend fun getMemberSummary(@Path("memberId") memberId: String): Response<ComplianceSummaryDto>
+
     @POST("members/me/compliance/share")
     suspend fun shareMyHistory(): Response<ShareLinkDto>
 }

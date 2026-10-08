@@ -46,7 +46,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import pe.kerolabs.pozzo.core.designsystem.components.InitialsAvatar
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoOutlinedButton
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoPrimaryButton
@@ -57,6 +62,9 @@ import pe.kerolabs.pozzo.core.format.formatSoles
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupStatus
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Periodicity
 import pe.kerolabs.pozzo.features.savingsgroups.domain.SavingsGroup
+
+/** How often the list is read again while one of the groups waits to start. */
+private const val LIST_REFRESH_MILLIS = 20_000L
 
 /**
  * B1, B2 and B3: the groups of the member, as organizer or participant, or the empty state.
@@ -72,6 +80,25 @@ fun MyGroupsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+
+    // Coming back, and every few seconds while a group waits to start, the list is read again: members join
+    // and organizers change the rules from other phones.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val waitingToStart = state.groups.any { it.status == GroupStatus.DRAFT || it.status == GroupStatus.READY }
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshQuietly()
+        onPauseOrDispose { }
+    }
+    LaunchedEffect(waitingToStart) {
+        if (waitingToStart) {
+            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                while (true) {
+                    delay(LIST_REFRESH_MILLIS)
+                    viewModel.refreshQuietly()
+                }
+            }
+        }
+    }
 
     LaunchedEffect(state.errorMessage) {
         state.errorMessage?.let {

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kerolabs.pozzo.core.network.userMessage
+import pe.kerolabs.pozzo.features.contributions.application.AttachReceiptImageUseCase
 import pe.kerolabs.pozzo.features.contributions.application.GetPotStateUseCase
 import pe.kerolabs.pozzo.features.contributions.application.ReadReceiptUseCase
 import pe.kerolabs.pozzo.features.contributions.application.RegisterContributionUseCase
@@ -51,6 +52,10 @@ data class RegisterUiState(
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
     val result: Contribution? = null,
+    /** The receipt the member chose; its image is kept once the contribution is registered. */
+    val imageUri: Uri? = null,
+    /** The contribution was registered but its image could not be kept. */
+    val imageNotKept: Boolean = false,
 ) {
     /** Whether the confirmed data match what is expected, shown before registering as a hint. */
     val matchesExpected: Boolean
@@ -84,6 +89,7 @@ class RegisterContributionViewModel @Inject constructor(
     private val getPotState: GetPotStateUseCase,
     private val readReceipt: ReadReceiptUseCase,
     private val registerContribution: RegisterContributionUseCase,
+    private val attachReceiptImage: AttachReceiptImageUseCase,
 ) : ViewModel() {
 
     private val groupId = savedStateHandle.toRoute<RegisterContributionRoute>().groupId
@@ -115,7 +121,7 @@ class RegisterContributionViewModel @Inject constructor(
 
     fun onImageChosen(uri: Uri) {
         viewModelScope.launch {
-            _state.update { it.copy(isReading = true, errorMessage = null) }
+            _state.update { it.copy(isReading = true, errorMessage = null, imageUri = uri) }
             val read = readReceipt(uri).getOrNull()
             val expected = _state.value.cycle
             _state.update {
@@ -137,7 +143,7 @@ class RegisterContributionViewModel @Inject constructor(
     }
 
     fun enterManually() = _state.update {
-        it.copy(step = RegisterStep.REVIEW, form = ReceiptForm(payeeName = it.cycle?.payeeName.orEmpty()))
+        it.copy(step = RegisterStep.REVIEW, form = ReceiptForm(payeeName = it.cycle?.payeeName.orEmpty()), imageUri = null)
     }
 
     fun onAmountChange(value: String) =
@@ -171,7 +177,17 @@ class RegisterContributionViewModel @Inject constructor(
                 ),
             )
                 .onSuccess { contribution ->
-                    _state.update { it.copy(isSaving = false, result = contribution, step = RegisterStep.RESULT) }
+                    // The image goes after the data: a contribution is never lost because its image failed.
+                    val imageUri = current.imageUri
+                    val kept = imageUri?.let { attachReceiptImage(contribution.id, it) }
+                    _state.update {
+                        it.copy(
+                            isSaving = false,
+                            result = kept?.getOrNull() ?: contribution,
+                            imageNotKept = kept?.isFailure == true,
+                            step = RegisterStep.RESULT,
+                        )
+                    }
                 }
                 .onFailure { error -> _state.update { it.copy(isSaving = false, errorMessage = error.userMessage()) } }
         }

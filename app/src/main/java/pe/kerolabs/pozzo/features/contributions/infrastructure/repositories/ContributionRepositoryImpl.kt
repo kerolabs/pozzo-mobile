@@ -5,6 +5,9 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import pe.kerolabs.pozzo.core.network.apiCall
 import pe.kerolabs.pozzo.features.contributions.domain.Contribution
 import pe.kerolabs.pozzo.features.contributions.domain.ContributionMethod
@@ -100,6 +103,14 @@ class ContributionRepositoryImpl @Inject constructor(
             )
         }.map { it.toDomain() }
 
+    override suspend fun attachReceiptImage(contributionId: String, jpeg: ByteArray): Result<Contribution> {
+        val part = MultipartBody.Part.createFormData("image", "receipt.jpg", jpeg.toRequestBody("image/jpeg".toMediaType()))
+        return apiCall { service.attachReceiptImage(contributionId, part) }.map { it.toDomain() }
+    }
+
+    override suspend fun getReceiptImageUrl(contributionId: String): Result<String> =
+        apiCall { service.getReceiptImage(contributionId) }.map { it.url }
+
     override suspend fun registerCash(
         periodId: String,
         membershipId: String,
@@ -193,5 +204,6 @@ class ContributionRepositoryImpl @Inject constructor(
         },
         inconsistencies = inconsistencies.orEmpty().map { Inconsistency(it.field, it.expected, it.found) },
         registeredAt = Instant.parse(registeredAt),
+        hasReceiptImage = hasReceiptImage,
     )
 }
