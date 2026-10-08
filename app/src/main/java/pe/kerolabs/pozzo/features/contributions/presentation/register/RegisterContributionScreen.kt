@@ -91,6 +91,7 @@ import pe.kerolabs.pozzo.features.contributions.domain.Contribution
 import pe.kerolabs.pozzo.features.contributions.domain.ContributionStatus
 import pe.kerolabs.pozzo.features.contributions.domain.ReceiptSource
 import pe.kerolabs.pozzo.features.contributions.presentation.common.DateField
+import pe.kerolabs.pozzo.features.contributions.presentation.common.LoadingOrError
 import pe.kerolabs.pozzo.features.contributions.presentation.common.fieldLabel
 import pe.kerolabs.pozzo.features.contributions.presentation.common.inconsistencyLabel
 
@@ -136,7 +137,7 @@ fun RegisterContributionScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             when (state.step) {
-                RegisterStep.INSTRUCTIONS -> InstructionsStep(state, onNext = { viewModel.goTo(RegisterStep.CAPTURE) })
+                RegisterStep.INSTRUCTIONS -> InstructionsStep(state, onNext = { viewModel.goTo(RegisterStep.CAPTURE) }, onRetry = viewModel::load)
                 RegisterStep.CAPTURE -> CaptureStep(state, viewModel)
                 RegisterStep.REVIEW -> ReviewStep(state, viewModel)
                 RegisterStep.RESULT -> state.result?.let { ResultStep(it, state, onClose, onMyContributions) }
@@ -146,17 +147,21 @@ fun RegisterContributionScreen(
 }
 
 @Composable
-private fun androidx.compose.foundation.layout.ColumnScope.InstructionsStep(state: RegisterUiState, onNext: () -> Unit) {
+private fun androidx.compose.foundation.layout.ColumnScope.InstructionsStep(
+    state: RegisterUiState,
+    onNext: () -> Unit,
+    onRetry: () -> Unit,
+) {
     val context = LocalContext.current
     val cycle = state.cycle
     val period = state.period
     val colors = MaterialTheme.colorScheme
+    if (cycle == null || period == null) {
+        // Centered in the whole step, not at the top of the scrolling column.
+        LoadingOrError(state.errorMessage == null, state.errorMessage, onRetry, Modifier.weight(1f))
+        return
+    }
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (cycle == null || period == null) {
-            CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
-            state.errorMessage?.let { Text(it, color = colors.error) }
-            return@Column
-        }
         Column(
             Modifier
                 .fillMaxWidth()
@@ -214,7 +219,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.InstructionsStep(stat
             Icons.Outlined.Info,
         )
     }
-    PozzoPrimaryButton(text = "Ya transferí, subir comprobante", onClick = onNext, icon = Icons.Outlined.Upload, enabled = cycle != null)
+    PozzoPrimaryButton(text = "Ya transferí, subir comprobante", onClick = onNext, icon = Icons.Outlined.Upload)
     Spacer(Modifier.height(8.dp))
 }
 
@@ -249,7 +254,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.CaptureStep(state: Re
         }
         Spacer(Modifier.height(16.dp))
         Text(
-            "Encuadra el comprobante completo: monto, fecha, destinatario y número de operación. Pozzo lo lee en tu teléfono; la imagen no se sube.",
+            "Encuadra el comprobante completo: monto, fecha, destinatario y número de operación. Pozzo lo lee en tu teléfono y guarda la imagen para que tú y la cabeza puedan verla después.",
             style = MaterialTheme.typography.bodyMedium,
             color = colors.onSurfaceVariant,
         )
@@ -414,6 +419,12 @@ private fun androidx.compose.foundation.layout.ColumnScope.ResultStep(
             color = colors.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+        if (state.imageNotKept) {
+            InfoBanner(
+                "Tu aporte quedó registrado, pero no pudimos guardar la imagen del comprobante.",
+                Icons.Outlined.Info,
+            )
+        }
         if (validated) {
             SummaryCard(
                 rows = listOfNotNull(
