@@ -21,6 +21,7 @@ import pe.kerolabs.pozzo.features.iam.application.UpdateDisplayNameUseCase
 import pe.kerolabs.pozzo.features.iam.application.UpdateThemeUseCase
 import pe.kerolabs.pozzo.features.iam.application.UpdateWalletNumberUseCase
 import pe.kerolabs.pozzo.features.iam.domain.Profile
+import pe.kerolabs.pozzo.features.notifications.application.UnregisterDeviceUseCase
 import pe.kerolabs.pozzo.features.iam.domain.ThemePreference
 import pe.kerolabs.pozzo.features.savingsgroups.application.ClearLocalGroupsUseCase
 
@@ -41,6 +42,7 @@ class ProfileViewModel @Inject constructor(
     private val signOut: SignOutUseCase,
     private val clearLocalGroups: ClearLocalGroupsUseCase,
     private val clearLocalContributions: ClearLocalContributionsUseCase,
+    private val unregisterDevice: UnregisterDeviceUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileUiState())
@@ -76,6 +78,8 @@ class ProfileViewModel @Inject constructor(
 
     fun signOut() {
         viewModelScope.launch {
+            // While the session is still open, so this phone stops receiving the pushes of the account.
+            unregisterDevice()
             clearLocalGroups()
             clearLocalContributions()
             signOut.invoke()

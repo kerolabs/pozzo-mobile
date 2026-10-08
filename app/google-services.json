@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "711909807738",
+    "project_id": "kerolabs-pozzo",
+    "storage_bucket": "kerolabs-pozzo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:711909807738:android:3cd972baa144fb6a2fcdc3",
+        "android_client_info": {
+          "package_name": "pe.kerolabs.pozzo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF0Dm8Bhbv35hoQDi91sn68_azK5l8KX8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:711909807738:android:094d036640b4dc4d2fcdc3",
+        "android_client_info": {
+          "package_name": "pe.kerolabs.pozzo.local"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF0Dm8Bhbv35hoQDi91sn68_azK5l8KX8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
