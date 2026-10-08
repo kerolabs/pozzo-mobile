@@ -5,8 +5,12 @@ import java.io.IOException
 import retrofit2.Response
 
 /**
- * An error answered by the Pozzo backend: the code tells the cases apart (e.g. INVALID_VERIFICATION_CODE)
- * and the message is already in Spanish.
+ * Represents an application or server-side error returned by the Pozzo REST backend.
+ *
+ * @property status HTTP status code returned by the server, or 0 for network connection errors.
+ * @property code Machine-readable error code (e.g. `INVALID_VERIFICATION_CODE`, `NETWORK_ERROR`).
+ * @property message User-facing localized description of the error in Spanish.
+ * @property details Optional technical or validation details explaining field-level failures.
  */
 class ApiException(
     val status: Int,

@@ -14,6 +14,14 @@ import pe.kerolabs.pozzo.features.iam.application.RequestCodeUseCase
 import pe.kerolabs.pozzo.features.iam.domain.CodeRequest
 import pe.kerolabs.pozzo.features.iam.domain.PhoneNumbers
 
+/**
+ * UI state for the phone authentication entry screen (A2).
+ *
+ * @property phone Current numeric phone input string entered by the user.
+ * @property isLoading Indicates whether an SMS verification code request is in-flight.
+ * @property errorMessage Feedback message explaining validation errors or network failures.
+ * @property codeSent Details of the dispatched verification code request upon success.
+ */
 data class PhoneUiState(
     val phone: String = "",
     val isLoading: Boolean = false,
@@ -23,6 +31,14 @@ data class PhoneUiState(
     val canSend: Boolean get() = PhoneNumbers.isValid(phone) && !isLoading
 }
 
+/**
+ * ViewModel handling phone number validation and SMS verification code dispatch during login/registration.
+ *
+ * Validates Peru mobile phone number format rules and invokes [RequestCodeUseCase]
+ * to dispatch the SMS challenge.
+ *
+ * @param requestCode Use case initiating OTP verification via SMS.
+ */
 @HiltViewModel
 class PhoneViewModel @Inject constructor(
     private val requestCode: RequestCodeUseCase,

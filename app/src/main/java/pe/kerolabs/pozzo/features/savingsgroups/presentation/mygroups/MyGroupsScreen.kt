@@ -67,7 +67,17 @@ import pe.kerolabs.pozzo.features.savingsgroups.domain.SavingsGroup
 private const val LIST_REFRESH_MILLIS = 20_000L
 
 /**
- * B1, B2 and B3: the groups of the member, as organizer or participant, or the empty state.
+ * Displays the member's savings groups (juntas), serving screens B1, B2, and B3.
+ *
+ * Renders an active list of savings groups where the user participates as an organizer or member,
+ * along with status chips, cycle amounts, turn payment schedules, and an empty state when no groups exist.
+ * Periodically polls the group list while groups are in DRAFT or READY states to reflect member joins.
+ *
+ * @param onCreateGroup Callback triggered when the user taps to create a new savings group.
+ * @param onJoinWithCode Callback triggered when the user wishes to join a group using an invite code.
+ * @param onOpenGroup Callback invoked with the selected [SavingsGroup] to open its details or active pot.
+ * @param onOpenProfile Callback invoked to open the member's user profile screen.
+ * @param viewModel ViewModel holding group lists, user profile info, and pull-to-refresh state.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -184,6 +194,15 @@ private fun Header(firstName: String, displayName: String, photoUrl: String?, on
     }
 }
 
+/**
+ * Card item representing an individual savings group in the list.
+ *
+ * Displays the group name, role badge (organizer vs participant), lifecycle state,
+ * contribution quota, pot total per turn, and upcoming payout turn details.
+ *
+ * @param group The savings group data model to display.
+ * @param onClick Callback executed when the member taps the card.
+ */
 @Composable
 private fun GroupCard(group: SavingsGroup, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
@@ -256,6 +275,14 @@ private fun cardSummary(group: SavingsGroup): String = when (group.status) {
     }
 }
 
+/**
+ * Empty state screen placeholder shown when the user has no registered savings groups.
+ *
+ * Prompts the user to start a new savings group or enter an invite code to join an existing group.
+ *
+ * @param onCreateGroup Callback invoked when the user selects the create action.
+ * @param onJoinWithCode Callback invoked when the user selects the join action.
+ */
 @Composable
 private fun EmptyState(onCreateGroup: () -> Unit, onJoinWithCode: () -> Unit) {
     val colors = MaterialTheme.colorScheme

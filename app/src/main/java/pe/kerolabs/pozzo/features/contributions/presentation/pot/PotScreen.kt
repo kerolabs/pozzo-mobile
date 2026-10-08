@@ -64,8 +64,21 @@ import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.MemberProfil
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.rememberMemberPhotos
 
 /**
- * F1: the pot of the period in progress, the same for the organizer and the participants, with the
- * state of every member's contribution. The actions depend on the role and on what is missing.
+ * Displays the active contribution pot (pozo) for the current cycle period (F1).
+ *
+ * Shared by both organizers and participants, this screen provides real-time progress on
+ * collected funds, cutoff deadlines, payment statuses for each member in the turn,
+ * receipt viewing capabilities, and role-based action triggers (e.g. upload receipt, verify receipts, payout pot).
+ *
+ * @param onBack Callback triggered when navigating back from the pot screen.
+ * @param onContribute Callback allowing a member to register their contribution with receipt proof.
+ * @param onReviews Callback allowing the organizer to review pending contribution receipts.
+ * @param onCash Callback allowing the organizer to record a cash payment.
+ * @param onCover Callback allowing the organizer to cover a missing contribution.
+ * @param onDeliver Callback allowing the organizer to mark the pot as delivered to the turn recipient.
+ * @param onGroupDetail Callback to navigate to general group settings and member rosters.
+ * @param onCalendar Callback to inspect the rotation turns calendar.
+ * @param viewModel ViewModel managing cycle data, member payment statuses, and pot progression.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -212,6 +225,11 @@ fun PotScreen(
     imageOf?.let { contributionId -> ReceiptImageViewer(contributionId, onDismiss = { imageOf = null }) }
 }
 
+/**
+ * Summary card presenting current period pot metrics, funding progress bar, and cutoff timeline.
+ *
+ * @param period The current active [Period] domain model containing financial and schedule data.
+ */
 @Composable
 private fun PotCard(period: Period) {
     val onBrand = MaterialTheme.colorScheme.onPrimaryContainer
@@ -257,6 +275,15 @@ private fun PotCard(period: Period) {
     }
 }
 
+/**
+ * Contextual bottom action bar rendering allowed actions based on current user role and period state.
+ *
+ * @param cycle The current group cycle metadata.
+ * @param period The current period status including payment and verification states.
+ * @param onContribute Action to register a contribution receipt.
+ * @param onReviews Action to review submitted member receipts.
+ * @param onDeliver Action to deliver the completed pot.
+ */
 @Composable
 private fun PotActions(cycle: Cycle, period: Period, onContribute: () -> Unit, onReviews: () -> Unit, onDeliver: () -> Unit) {
     val mine = period.myState

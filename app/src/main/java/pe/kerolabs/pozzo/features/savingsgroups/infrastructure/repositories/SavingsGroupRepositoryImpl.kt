@@ -38,8 +38,13 @@ import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.TurnCalend
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.UpdateRulesRequestDto
 
 /**
- * The groups are read from Room and refreshed from the backend, so the list opens without connection.
- * Every group the backend returns updates the local copy.
+ * Concrete implementation of [SavingsGroupRepository] applying an offline-first strategy.
+ *
+ * Reads savings groups reactively from the local Room database ([GroupDao]) to provide instantaneous
+ * screen launches, and synchronizes state against the remote backend using [GroupsService].
+ *
+ * @param service Retrofit API client for savings groups endpoints.
+ * @param dao Room DAO providing local persistence for group entities.
  */
 class SavingsGroupRepositoryImpl @Inject constructor(
     private val service: GroupsService,
