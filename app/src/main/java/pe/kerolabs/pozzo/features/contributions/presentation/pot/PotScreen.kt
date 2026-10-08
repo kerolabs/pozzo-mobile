@@ -1,6 +1,7 @@
 package pe.kerolabs.pozzo.features.contributions.presentation.pot
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.FactCheck
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.DropdownMenu
@@ -52,10 +54,13 @@ import pe.kerolabs.pozzo.core.format.formatShortDate
 import pe.kerolabs.pozzo.core.format.formatSoles
 import pe.kerolabs.pozzo.features.contributions.domain.ContributionState
 import pe.kerolabs.pozzo.features.contributions.domain.Cycle
+import pe.kerolabs.pozzo.features.contributions.domain.MemberContribution
 import pe.kerolabs.pozzo.features.contributions.domain.Period
 import pe.kerolabs.pozzo.features.contributions.domain.PeriodState
 import pe.kerolabs.pozzo.features.contributions.presentation.common.ContributionStateChip
 import pe.kerolabs.pozzo.features.contributions.presentation.common.LoadingOrError
+import pe.kerolabs.pozzo.features.contributions.presentation.common.ReceiptImageViewer
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.MemberProfileSheet
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.rememberMemberPhotos
 
 /**
@@ -81,6 +86,8 @@ fun PotScreen(
     val period = state.period
     val groupId = viewModel.groupId
     val photos = rememberMemberPhotos(groupId)
+    var profileOf by remember { mutableStateOf<MemberContribution?>(null) }
+    var imageOf by remember { mutableStateOf<String?>(null) }
 
     LifecycleResumeEffect(Unit) {
         viewModel.load()
@@ -168,7 +175,10 @@ fun PotScreen(
                 Spacer(Modifier.height(8.dp))
             }
             items(period.members, key = { it.membershipId }) { member ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.fillMaxWidth().clickable { profileOf = member }.padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     InitialsAvatar(name = member.displayName, size = 40.dp, photoUrl = photos[member.membershipId])
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
@@ -185,6 +195,21 @@ fun PotScreen(
             }
         }
     }
+
+    profileOf?.let { member ->
+        MemberProfileSheet(groupId = groupId, membershipId = member.membershipId, onDismiss = { profileOf = null }) {
+            // The organizer sees any receipt; a member, only their own.
+            val contributionId = member.contributionId
+            if (contributionId != null && (cycle?.isOrganizer == true || member.isMe)) {
+                PozzoOutlinedButton(
+                    text = "Ver comprobante",
+                    onClick = { imageOf = contributionId },
+                    icon = Icons.Outlined.Image,
+                )
+            }
+        }
+    }
+    imageOf?.let { contributionId -> ReceiptImageViewer(contributionId, onDismiss = { imageOf = null }) }
 }
 
 @Composable

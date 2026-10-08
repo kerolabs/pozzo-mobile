@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.HourglassTop
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Schedule
@@ -49,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.Duration
 import java.time.Instant
 import pe.kerolabs.pozzo.core.designsystem.components.InfoBanner
+import pe.kerolabs.pozzo.core.designsystem.components.PozzoOutlinedButton
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoTopBar
 import pe.kerolabs.pozzo.core.designsystem.components.StatusChip
 import pe.kerolabs.pozzo.core.designsystem.components.SummaryCard
@@ -62,6 +64,7 @@ import pe.kerolabs.pozzo.features.contributions.domain.MyPeriodContribution
 import pe.kerolabs.pozzo.features.contributions.domain.ReceiptSource
 import pe.kerolabs.pozzo.features.contributions.presentation.common.ContributionStateChip
 import pe.kerolabs.pozzo.features.contributions.presentation.common.LoadingOrError
+import pe.kerolabs.pozzo.features.contributions.presentation.common.ReceiptImageViewer
 
 /**
  * G1: one row per period with the state of the member's contribution; a validated one opens its receipt.
@@ -72,6 +75,7 @@ import pe.kerolabs.pozzo.features.contributions.presentation.common.LoadingOrErr
 fun MyContributionsScreen(onBack: () -> Unit, viewModel: MyContributionsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var receiptOf by remember { mutableStateOf<MyPeriodContribution?>(null) }
+    var imageOf by remember { mutableStateOf<String?>(null) }
     val data = state.contributions
 
     Scaffold(topBar = { PozzoTopBar(title = "Mis aportes", onBack = onBack) }) { padding ->
@@ -120,7 +124,7 @@ fun MyContributionsScreen(onBack: () -> Unit, viewModel: MyContributionsViewMode
             }
             item {
                 Text(
-                    "Toca un aporte validado para ver su comprobante.",
+                    "Toca un aporte para ver su comprobante.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -130,9 +134,10 @@ fun MyContributionsScreen(onBack: () -> Unit, viewModel: MyContributionsViewMode
 
     receiptOf?.let { period ->
         ModalBottomSheet(onDismissRequest = { receiptOf = null }) {
-            ReceiptSheet(period)
+            ReceiptSheet(period, onSeeImage = { contributionId -> imageOf = contributionId })
         }
     }
+    imageOf?.let { contributionId -> ReceiptImageViewer(contributionId, onDismiss = { imageOf = null }) }
 }
 
 @Composable
@@ -148,7 +153,8 @@ private fun PeriodRow(period: MyPeriodContribution, onOpen: () -> Unit) {
     val status = PozzoThemeExtras.statusColors
     val colors = MaterialTheme.colorScheme
     val contribution = period.contribution
-    val opensReceipt = contribution != null && period.state.let { it == ContributionState.VALIDATED || it == ContributionState.COVERED }
+    // Every registered contribution opens its receipt, also while the organizer reviews it.
+    val opensReceipt = contribution != null
     val (icon, container, content) = when (period.state) {
         ContributionState.VALIDATED -> Triple(Icons.Outlined.ReceiptLong, status.successContainer, status.onSuccessContainer)
         ContributionState.IN_REVIEW -> Triple(Icons.Outlined.HourglassTop, status.warningContainer, status.onWarningContainer)
@@ -183,7 +189,7 @@ private fun PeriodRow(period: MyPeriodContribution, onOpen: () -> Unit) {
 }
 
 @Composable
-private fun ReceiptSheet(period: MyPeriodContribution) {
+private fun ReceiptSheet(period: MyPeriodContribution, onSeeImage: (contributionId: String) -> Unit) {
     val contribution = period.contribution ?: return
     val receipt = contribution.receipt
     Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
@@ -207,6 +213,14 @@ private fun ReceiptSheet(period: MyPeriodContribution) {
                 }
             },
         )
+        if (contribution.hasReceiptImage) {
+            Spacer(Modifier.height(16.dp))
+            PozzoOutlinedButton(
+                text = "Ver imagen del comprobante",
+                onClick = { onSeeImage(contribution.id) },
+                icon = Icons.Outlined.Image,
+            )
+        }
     }
 }
 

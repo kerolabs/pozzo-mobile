@@ -15,6 +15,7 @@ import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import pe.kerolabs.pozzo.core.designsystem.theme.PozzoThemeExtras
 
 /**
@@ -36,7 +37,13 @@ fun InitialsAvatar(
         modifier = modifier.size(size).clip(CircleShape).background(bg),
         contentAlignment = Alignment.Center,
     ) {
-        Text(initialsOf(name), style = MaterialTheme.typography.titleMedium, color = fg)
+        // Small avatars use the title size; large ones, as in a profile, grow the initials with the circle.
+        val style = MaterialTheme.typography.titleMedium
+        Text(
+            initialsOf(name),
+            style = if (size > 64.dp) style.copy(fontSize = (size.value * 0.36f).sp, lineHeight = (size.value * 0.44f).sp) else style,
+            color = fg,
+        )
         if (photoUrl != null) {
             AsyncImage(
                 model = photoUrl,

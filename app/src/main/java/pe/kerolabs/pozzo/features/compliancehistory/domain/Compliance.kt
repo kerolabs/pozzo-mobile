@@ -52,4 +52,7 @@ interface ComplianceRepository {
     suspend fun getGroupCompliance(groupId: String): Result<List<MemberCompliance>>
 
     suspend fun shareMyHistory(): Result<ShareLink>
+
+    /** The summary of a member, for that member or for an organizer of one of their groups. */
+    suspend fun getMemberSummary(accountId: String): Result<ComplianceSummary>
 }

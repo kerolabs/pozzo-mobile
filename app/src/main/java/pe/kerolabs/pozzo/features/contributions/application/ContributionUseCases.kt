@@ -4,12 +4,29 @@ import android.net.Uri
 import java.math.BigDecimal
 import java.time.LocalDate
 import javax.inject.Inject
+import pe.kerolabs.pozzo.features.contributions.domain.Contribution
 import pe.kerolabs.pozzo.features.contributions.domain.ContributionRepository
 import pe.kerolabs.pozzo.features.contributions.domain.Cycle
 import pe.kerolabs.pozzo.features.contributions.domain.Period
 import pe.kerolabs.pozzo.features.contributions.domain.ReceiptData
 import pe.kerolabs.pozzo.features.contributions.domain.ReceiptReader
 import pe.kerolabs.pozzo.features.contributions.domain.ReviewDecision
+import pe.kerolabs.pozzo.features.contributions.infrastructure.local.ReceiptImageReader
+
+/** Keeps the image of a receipt, made lighter on the phone before it is uploaded. */
+class AttachReceiptImageUseCase @Inject constructor(
+    private val repository: ContributionRepository,
+    private val reader: ReceiptImageReader,
+) {
+    suspend operator fun invoke(contributionId: String, imageUri: Uri): Result<Contribution> =
+        runCatching { reader.read(imageUri) }.mapCatching { jpeg ->
+            repository.attachReceiptImage(contributionId, jpeg).getOrThrow()
+        }
+}
+
+class GetReceiptImageUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(contributionId: String) = repository.getReceiptImageUrl(contributionId)
+}
 
 /**
  * The cycle of a group and its period in progress, which together are the state of the pot.

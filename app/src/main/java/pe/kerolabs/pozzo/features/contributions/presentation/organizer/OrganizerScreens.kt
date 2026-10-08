@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Celebration
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.HorizontalDivider
@@ -34,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -62,6 +64,7 @@ import pe.kerolabs.pozzo.features.contributions.domain.ReviewDecision
 import pe.kerolabs.pozzo.features.contributions.presentation.common.DateField
 import pe.kerolabs.pozzo.features.contributions.presentation.common.LoadingOrError
 import pe.kerolabs.pozzo.features.contributions.presentation.common.MemberOption
+import pe.kerolabs.pozzo.features.contributions.presentation.common.ReceiptImageViewer
 import pe.kerolabs.pozzo.features.contributions.presentation.common.fieldLabel
 import pe.kerolabs.pozzo.features.contributions.presentation.common.inconsistencyLabel
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.rememberMemberPhotos
@@ -153,6 +156,7 @@ fun ReviewDetailScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val photos = rememberMemberPhotos(state.cycle?.groupId)
     var note by rememberSaveable { mutableStateOf("") }
+    var seeingImage by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { viewModel.load() }
     LaunchedEffect(state.decided) { if (state.decided != null) onDecided(state.reviews.size <= 1) }
 
@@ -230,6 +234,10 @@ fun ReviewDetailScreen(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             CheckRow(title = "N.º de operación", detail = "${receipt?.operationNumber.orEmpty()} · no está repetido", ok = true)
         }
+        if (contribution.hasReceiptImage) {
+            PozzoOutlinedButton(text = "Ver comprobante", onClick = { seeingImage = true }, icon = Icons.Outlined.Image)
+        }
+        if (seeingImage) ReceiptImageViewer(contribution.id, onDismiss = { seeingImage = false })
         PozzoTextField(
             label = "Nota para ${contribution.memberName.substringBefore(' ')} (opcional)",
             value = note,

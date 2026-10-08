@@ -57,6 +57,7 @@ data class MemberDto(
     val phoneNumber: String?,
     val turnNumber: Int?,
     val photoUrl: String?,
+    val accountId: String?,
 )
 
 data class AddManualMemberRequestDto(val displayName: String, val phoneNumber: String?)

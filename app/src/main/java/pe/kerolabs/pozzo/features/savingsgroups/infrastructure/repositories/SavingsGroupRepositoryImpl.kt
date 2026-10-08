@@ -165,6 +165,7 @@ class SavingsGroupRepositoryImpl @Inject constructor(
         phoneNumber = phoneNumber,
         turnNumber = turnNumber,
         photoUrl = photoUrl,
+        accountId = accountId,
     )
 
     private fun TurnCalendarDto.toDomain() = TurnCalendar(

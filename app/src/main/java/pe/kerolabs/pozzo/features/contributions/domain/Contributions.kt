@@ -104,6 +104,8 @@ data class Contribution(
     val receipt: ReceiptData?,
     val inconsistencies: List<Inconsistency>,
     val registeredAt: Instant,
+    /** True when the image of the receipt was kept; its link is asked for when it is opened. */
+    val hasReceiptImage: Boolean = false,
 )
 
 /**
@@ -135,6 +137,12 @@ interface ContributionRepository {
 
     suspend fun registerCoverage(periodId: String, membershipId: String, coveredByMembershipId: String): Result<Contribution>
 
+    /** Keeps the image of the receipt of a contribution the member registered, as a JPEG. */
+    suspend fun attachReceiptImage(contributionId: String, jpeg: ByteArray): Result<Contribution>
+
+    /** A link to the image of a receipt that works for a few minutes. */
+    suspend fun getReceiptImageUrl(contributionId: String): Result<String>
+
     suspend fun getPendingReviews(periodId: String): Result<List<Contribution>>
 
     suspend fun review(contributionId: String, decision: ReviewDecision, note: String?): Result<Contribution>
@@ -143,7 +151,8 @@ interface ContributionRepository {
 }
 
 /**
- * Reads the text of a receipt image on the phone. The image never leaves the device.
+ * Reads the text of a receipt image on the phone; the image itself is kept apart, only once the
+ * contribution is registered.
  */
 interface ReceiptReader {
     suspend fun read(imageUri: android.net.Uri): Result<ReadReceipt>

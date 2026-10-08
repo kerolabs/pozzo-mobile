@@ -73,7 +73,10 @@ data class ContributionDto(
     val receipt: ReceiptDto?,
     val inconsistencies: List<InconsistencyDto>?,
     val registeredAt: String,
+    val hasReceiptImage: Boolean = false,
 )
+
+data class ReceiptImageDto(val url: String, val expiresAt: String)
 
 data class MyContributionsDto(
     val cycleId: String,

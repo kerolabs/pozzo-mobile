@@ -14,3 +14,7 @@ class GetGroupComplianceUseCase @Inject constructor(private val repository: Comp
 class ShareMyHistoryUseCase @Inject constructor(private val repository: ComplianceRepository) {
     suspend operator fun invoke() = repository.shareMyHistory()
 }
+
+class GetMemberSummaryUseCase @Inject constructor(private val repository: ComplianceRepository) {
+    suspend operator fun invoke(accountId: String) = repository.getMemberSummary(accountId)
+}

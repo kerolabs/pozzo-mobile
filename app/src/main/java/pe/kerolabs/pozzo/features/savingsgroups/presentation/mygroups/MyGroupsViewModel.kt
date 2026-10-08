@@ -64,7 +64,7 @@ class MyGroupsViewModel @Inject constructor(
         refresh()
         // A push about a group (someone joined, it started or it was deleted) refreshes the list on view.
         viewModelScope.launch {
-            incomingPushes.deepLinks.collect { link -> if (link.startsWith("pozzo://groups")) refresh() }
+            incomingPushes.deepLinks.collect { link -> if (link.startsWith("pozzo://groups")) refreshQuietly() }
         }
     }
 
@@ -79,6 +79,14 @@ class MyGroupsViewModel @Inject constructor(
                     loadedOnce = it.loadedOnce || result.isSuccess,
                 )
             }
+        }
+    }
+
+    /** Reads the groups again without the pull-to-refresh spinner, e.g. when the screen comes back. */
+    fun refreshQuietly() {
+        viewModelScope.launch {
+            val result = refreshMyGroups()
+            if (result.isSuccess) refresh.update { it.copy(loadedOnce = true) }
         }
     }
 
