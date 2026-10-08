@@ -9,6 +9,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val Spanish: Locale = Locale.forLanguageTag("es-PE")
+
+// Amounts use a comma for thousands and a dot for decimals, as is common in Peru.
 private val Symbols = DecimalFormatSymbols(Locale.US)
 
 /**

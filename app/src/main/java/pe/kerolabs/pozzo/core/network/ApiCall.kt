@@ -15,6 +15,10 @@ class ApiException(
     val details: String? = null,
 ) : Exception(message)
 
+/**
+ * The shape of the error body the backend sends; every field is optional because a proxy or the
+ * server itself may answer with something else.
+ */
 private data class ErrorBody(val code: String?, val message: String?, val details: String?)
 
 private val gson = Gson()
@@ -26,6 +30,7 @@ private val gson = Gson()
 suspend fun <T> apiCall(call: suspend () -> Response<T>): Result<T> = try {
     val response = call()
     if (response.isSuccessful) {
+        // Endpoints that answer 204 have no body, so Unit stands in for it.
         @Suppress("UNCHECKED_CAST")
         Result.success(response.body() ?: Unit as T)
     } else {
