@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Photos taken with the camera: receipts, read on the device, and profile photos before they are reduced. -->
+<paths>
+    <cache-path name="receipts" path="receipts/" />
+    <cache-path name="photos" path="photos/" />
+</paths>
