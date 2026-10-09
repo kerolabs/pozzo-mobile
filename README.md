@@ -54,6 +54,26 @@ Each feature package is partitioned into the following layers:
 
 ---
 
+## Getting Started
+
+From a fresh clone to the app running on an emulator or device:
+
+1. **Clone the repository** and switch to the integration branch:
+   ```bash
+   git clone https://github.com/kerolabs/pozzo-mobile.git
+   cd pozzo-mobile
+   git checkout develop
+   ```
+2. **Open the project in Android Studio** (*File > Open* and select the `pozzo-mobile` folder) and let the first Gradle sync finish. The sync also runs `git config core.hooksPath .githooks`, so the commit-message hook is active from the start.
+3. **Pick a build variant** in *Build > Select Build Variant*:
+   - `cloudDebug` to use the deployed backend (recommended for most work, no extra setup).
+   - `localDebug` to use a backend running on your machine (see [Working with the Local Flavor](#working-with-the-local-flavor)).
+4. **Run the app** with *Run > Run 'app'* on an emulator or a USB-connected device running Android 8.0 (API 26) or newer.
+5. **Before opening a Pull Request**, read [CONTRIBUTING.md](CONTRIBUTING.md) for the branching model, code style and PR checklist.
+
+> Firebase is already configured: `app/google-services.json` is committed and registers both `pe.kerolabs.pozzo` and `pe.kerolabs.pozzo.local`, so push notifications work in either flavor without extra steps.
+
+---
 ## Build Variants & Product Flavors
 
 Pozzo defines a `backend` flavor dimension with two configurations:
