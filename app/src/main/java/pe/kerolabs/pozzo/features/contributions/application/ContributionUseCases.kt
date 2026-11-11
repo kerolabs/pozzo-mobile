@@ -28,6 +28,11 @@ class GetReceiptImageUseCase @Inject constructor(private val repository: Contrib
     suspend operator fun invoke(contributionId: String) = repository.getReceiptImageUrl(contributionId)
 }
 
+/** US28: the public link of a settled contribution, which anyone can open without signing in. */
+class ShareContributionUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(contributionId: String) = repository.shareContribution(contributionId)
+}
+
 /**
  * The cycle of a group and its period in progress, which together are the state of the pot.
  */

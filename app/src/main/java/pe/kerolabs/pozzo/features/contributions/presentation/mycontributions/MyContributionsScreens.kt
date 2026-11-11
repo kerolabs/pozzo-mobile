@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.VolunteerActivism
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,6 +37,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,10 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.content.Intent
 import java.time.Duration
 import java.time.Instant
 import pe.kerolabs.pozzo.core.designsystem.components.InfoBanner
@@ -77,6 +81,16 @@ fun MyContributionsScreen(onBack: () -> Unit, viewModel: MyContributionsViewMode
     var receiptOf by remember { mutableStateOf<MyPeriodContribution?>(null) }
     var imageOf by remember { mutableStateOf<String?>(null) }
     val data = state.contributions
+    val context = LocalContext.current
+    LaunchedEffect(state.shareText) {
+        val text = state.shareText ?: return@LaunchedEffect
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        context.startActivity(Intent.createChooser(send, "Compartir mi aporte"))
+        viewModel.onShared()
+    }
 
     Scaffold(topBar = { PozzoTopBar(title = "Mis aportes", onBack = onBack) }) { padding ->
         if (data == null) {
@@ -134,7 +148,13 @@ fun MyContributionsScreen(onBack: () -> Unit, viewModel: MyContributionsViewMode
 
     receiptOf?.let { period ->
         ModalBottomSheet(onDismissRequest = { receiptOf = null }) {
-            ReceiptSheet(period, onSeeImage = { contributionId -> imageOf = contributionId })
+            ReceiptSheet(
+                period,
+                onSeeImage = { contributionId -> imageOf = contributionId },
+                onShare = { viewModel.share(period) },
+                isSharing = state.isSharing,
+                shareError = state.shareError,
+            )
         }
     }
     imageOf?.let { contributionId -> ReceiptImageViewer(contributionId, onDismiss = { imageOf = null }) }
@@ -189,7 +209,13 @@ private fun PeriodRow(period: MyPeriodContribution, onOpen: () -> Unit) {
 }
 
 @Composable
-private fun ReceiptSheet(period: MyPeriodContribution, onSeeImage: (contributionId: String) -> Unit) {
+private fun ReceiptSheet(
+    period: MyPeriodContribution,
+    onSeeImage: (contributionId: String) -> Unit,
+    onShare: () -> Unit,
+    isSharing: Boolean,
+    shareError: String?,
+) {
     val contribution = period.contribution ?: return
     val receipt = contribution.receipt
     Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
@@ -220,6 +246,22 @@ private fun ReceiptSheet(period: MyPeriodContribution, onSeeImage: (contribution
                 onClick = { onSeeImage(contribution.id) },
                 icon = Icons.Outlined.Image,
             )
+        }
+        // Only a settled contribution can be shared: one under review could still be rejected.
+        if (period.state == ContributionState.VALIDATED || period.state == ContributionState.COVERED) {
+            Spacer(Modifier.height(8.dp))
+            PozzoOutlinedButton(
+                text = if (isSharing) "Preparando el enlace…" else "Compartir con enlace verificable",
+                onClick = onShare,
+                enabled = !isSharing,
+                icon = Icons.Outlined.Share,
+            )
+            Text(
+                "Quien lo abra ve la junta, el período, el monto y el final del número de operación, sin la imagen.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            shareError?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
         }
     }
 }

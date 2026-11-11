@@ -148,6 +148,9 @@ interface ContributionRepository {
     suspend fun review(contributionId: String, decision: ReviewDecision, note: String?): Result<Contribution>
 
     suspend fun deliverPot(periodId: String): Result<PotDelivery>
+
+    /** The public link that proves a settled contribution, the same every time it is asked for. */
+    suspend fun shareContribution(contributionId: String): Result<String>
 }
 
 /**
