@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PersonAddAlt
+import androidx.compose.material.icons.outlined.PersonOff
 import androidx.compose.material.icons.outlined.PersonRemove
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Visibility
@@ -37,8 +38,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,6 +66,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import pe.kerolabs.pozzo.core.designsystem.components.InitialsAvatar
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoOutlinedButton
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoPrimaryButton
@@ -79,6 +83,7 @@ import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupStatus
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Invitation
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Member
 import pe.kerolabs.pozzo.features.savingsgroups.domain.MembershipKind
+import pe.kerolabs.pozzo.features.savingsgroups.domain.Turn
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.ChecklistItem
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.MemberProfileSheet
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.ReadinessChecklist
@@ -91,6 +96,9 @@ import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.turnMethodLa
 
 /** How often the group is read again while it waits to start, so members who join show up on their own. */
 private const val LIVE_REFRESH_MILLIS = 15_000L
+
+/** How long the removal of a member can be undone. */
+private const val UNDO_REMOVAL_MILLIS = 5_000L
 
 /**
  * E1 for the organizer and E9 for a participant: the group with its members, turns and rules, and
@@ -123,6 +131,23 @@ fun GroupDetailScreen(
         state.message?.let {
             snackbar.showSnackbar(it)
             viewModel.onMessageShown()
+        }
+    }
+    // US15: five seconds to undo the removal of a member before it is sent.
+    LaunchedEffect(state.pendingRemoval) {
+        val member = state.pendingRemoval ?: return@LaunchedEffect
+        val result = withTimeoutOrNull(UNDO_REMOVAL_MILLIS) {
+            snackbar.showSnackbar(
+                "${member.displayName} ya no es parte de la junta.",
+                actionLabel = "Deshacer",
+                duration = SnackbarDuration.Indefinite,
+            )
+        }
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.undoRemove()
+        } else {
+            snackbar.currentSnackbarData?.dismiss()
+            viewModel.confirmRemove()
         }
     }
     LaunchedEffect(state.invitation) {
@@ -252,7 +277,9 @@ fun GroupDetailScreen(
                 onSelectTab = viewModel::selectTab,
                 onOpenMember = { membershipId -> profileOf = membershipId },
                 onChangeTurns = { onAssignTurns(viewModel.groupId, detail.group.seats) },
+                onReplace = viewModel::openReplace,
                 canEdit = canEdit,
+                hiddenMember = state.pendingRemoval?.membershipId,
                 contentPadding = padding,
             )
         }
@@ -270,7 +297,37 @@ fun GroupDetailScreen(
                     icon = Icons.Outlined.PersonRemove,
                 )
             }
+            // Once the group started a member is not removed: their leaving is recorded as a dropout.
+            if (group?.isOrganizer == true && group.status == GroupStatus.STARTED && !member.isOrganizer) {
+                PozzoOutlinedButton(
+                    text = "Registrar deserción",
+                    onClick = {
+                        profileOf = null
+                        viewModel.askDropout(member)
+                    },
+                    icon = Icons.Outlined.PersonOff,
+                )
+            }
         }
+    }
+
+    state.confirmingDropout?.let { member ->
+        DropoutDialog(
+            memberName = member.displayName,
+            saving = state.isRegisteringDropout,
+            onConfirm = viewModel::confirmDropout,
+            onDismiss = viewModel::dismissDropout,
+        )
+    }
+
+    state.replace?.let { form ->
+        ReplaceMemberSheet(
+            form = form,
+            onNameChange = viewModel::onReplaceName,
+            onPhoneChange = viewModel::onReplacePhone,
+            onSave = viewModel::saveReplacement,
+            onDismiss = viewModel::closeReplace,
+        )
     }
 
     if (state.confirmingDelete && group != null) {
@@ -300,10 +357,13 @@ private fun DetailContent(
     onSelectTab: (GroupDetailTab) -> Unit,
     onOpenMember: (membershipId: String) -> Unit,
     onChangeTurns: () -> Unit,
+    onReplace: (Turn) -> Unit,
     canEdit: Boolean,
+    hiddenMember: String?,
     contentPadding: PaddingValues,
 ) {
     val group = detail.group
+    val activeIds = detail.members.map { it.membershipId }.toSet()
     val colors = MaterialTheme.colorScheme
     val status = PozzoThemeExtras.statusColors
     LazyColumn(
@@ -368,7 +428,7 @@ private fun DetailContent(
             Spacer(Modifier.height(8.dp))
         }
         when (tab) {
-            GroupDetailTab.MEMBERS -> items(detail.members, key = { it.membershipId }) { member ->
+            GroupDetailTab.MEMBERS -> items(detail.members.filter { it.membershipId != hiddenMember }, key = { it.membershipId }) { member ->
                 MemberRow(member = member, onOpen = { onOpenMember(member.membershipId) })
             }
             GroupDetailTab.TURNS -> {
@@ -383,12 +443,23 @@ private fun DetailContent(
                     }
                 } else {
                     items(detail.turns.turns, key = { it.turnNumber }) { turn ->
+                        // A turn whose member is no longer active belongs to someone who dropped out.
+                        val dropped = group.isStarted && turn.membershipId !in activeIds
                         TurnRow(
                             turnNumber = turn.turnNumber,
                             name = if (turn.isMe) "${turn.displayName} (tú)" else turn.displayName,
                             cutoffDate = turn.cutoffDate,
                             highlighted = turn.isMe,
-                            modifier = Modifier.clickable { onOpenMember(turn.membershipId) },
+                            subtitle = if (dropped) "Dejó la junta · falta un reemplazo" else null,
+                            trailing = {
+                                if (dropped) StatusChip("Desertó", colors.errorContainer, colors.onErrorContainer)
+                            },
+                            modifier = Modifier.clickable {
+                                when {
+                                    dropped && group.isOrganizer && group.status == GroupStatus.STARTED -> onReplace(turn)
+                                    !dropped -> onOpenMember(turn.membershipId)
+                                }
+                            },
                         )
                     }
                     if (canEdit) {
@@ -490,6 +561,70 @@ private fun DeleteGroupDialog(groupName: String, deleting: Boolean, onConfirm: (
         },
         dismissButton = { TextButton(onClick = onDismiss, enabled = !deleting) { Text("Cancelar") } },
     )
+}
+
+@Composable
+private fun DropoutDialog(memberName: String, saving: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        icon = { Icon(Icons.Outlined.PersonOff, contentDescription = null) },
+        title = { Text("¿$memberName dejó la junta?") },
+        text = {
+            Text(
+                "Queda en su historial de cumplimiento y deja de recibir recordatorios. Su turno queda libre para " +
+                    "que asignes a alguien en su lugar.",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = !saving) { Text("Registrar deserción", color = MaterialTheme.colorScheme.error) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancelar") } },
+    )
+}
+
+/** US38: who takes the turn of the member who dropped out, with or without the application. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReplaceMemberSheet(
+    form: ReplaceForm,
+    onNameChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
+            Text("Reemplazo en el turno ${form.turnNumber}", style = MaterialTheme.typography.headlineSmall)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Toma el lugar de ${form.droppedName} y debe lo que quedó pendiente del período en curso. Si su celular " +
+                    "ya usa Pozzo, se une con su cuenta; si no, tú registras sus aportes.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(20.dp))
+            PozzoTextField(
+                label = "Nombre",
+                value = form.name,
+                onValueChange = onNameChange,
+                placeholder = "Rosa Medina",
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+            )
+            Spacer(Modifier.height(16.dp))
+            PozzoTextField(
+                label = "Celular (opcional)",
+                value = form.phone,
+                onValueChange = onPhoneChange,
+                prefix = "+51",
+                placeholder = "999 000 000",
+                errorText = form.errorMessage,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            )
+            Spacer(Modifier.height(24.dp))
+            PozzoPrimaryButton(text = "Asignar reemplazo", onClick = onSave, enabled = form.canSave, loading = form.isSaving)
+            PozzoTextButton(text = "Cancelar", onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally))
+        }
+    }
 }
 
 @Composable

@@ -62,6 +62,8 @@ data class MemberDto(
 
 data class AddManualMemberRequestDto(val displayName: String, val phoneNumber: String?)
 
+data class ReplaceMemberRequestDto(val displayName: String, val phoneNumber: String?)
+
 data class TurnCalendarDto(
     val method: String?,
     val drawSeed: String?,
