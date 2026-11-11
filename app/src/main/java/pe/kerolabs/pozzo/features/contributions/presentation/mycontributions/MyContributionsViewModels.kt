@@ -11,10 +11,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import pe.kerolabs.pozzo.core.format.formatSoles
 import pe.kerolabs.pozzo.core.network.userMessage
 import pe.kerolabs.pozzo.features.contributions.application.FindAuctionUseCase
 import pe.kerolabs.pozzo.features.contributions.application.GetCycleHistoryUseCase
 import pe.kerolabs.pozzo.features.contributions.application.GetMyContributionsUseCase
+import pe.kerolabs.pozzo.features.contributions.application.ShareContributionUseCase
+import pe.kerolabs.pozzo.features.contributions.domain.MyPeriodContribution
 import pe.kerolabs.pozzo.features.contributions.domain.Cycle
 import pe.kerolabs.pozzo.features.contributions.domain.MyContributions
 import pe.kerolabs.pozzo.features.contributions.presentation.navigation.MyContributionsRoute
@@ -26,6 +29,10 @@ data class MyContributionsUiState(
     val contributions: MyContributions? = null,
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
+    /** The text to hand to the share sheet, with the verifiable link of a contribution. */
+    val shareText: String? = null,
+    val isSharing: Boolean = false,
+    val shareError: String? = null,
 )
 
 /** G1: the member's contributions in a group and their receipts, also without connection. */
@@ -33,6 +40,7 @@ data class MyContributionsUiState(
 class MyContributionsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getMyContributions: GetMyContributionsUseCase,
+    private val shareContribution: ShareContributionUseCase,
 ) : ViewModel() {
 
     private val groupId = savedStateHandle.toRoute<MyContributionsRoute>().groupId
@@ -52,6 +60,25 @@ class MyContributionsViewModel @Inject constructor(
                 .onFailure { error -> _state.update { it.copy(isLoading = false, errorMessage = error.userMessage()) } }
         }
     }
+
+    /** US28: asks for the verifiable link of a settled contribution and prepares the message to share. */
+    fun share(period: MyPeriodContribution) {
+        val contribution = period.contribution ?: return
+        if (_state.value.isSharing) return
+        val groupName = _state.value.contributions?.groupName.orEmpty()
+        viewModelScope.launch {
+            _state.update { it.copy(isSharing = true, shareError = null) }
+            shareContribution(contribution.id)
+                .onSuccess { url ->
+                    val text = "Mi aporte de ${formatSoles(contribution.amount)} a $groupName, período ${period.turnNumber}, " +
+                        "quedó registrado en Pozzo. Puedes verificarlo aquí: $url"
+                    _state.update { it.copy(isSharing = false, shareText = text) }
+                }
+                .onFailure { error -> _state.update { it.copy(isSharing = false, shareError = error.userMessage()) } }
+        }
+    }
+
+    fun onShared() = _state.update { it.copy(shareText = null) }
 }
 
 data class TurnCalendarUiState(

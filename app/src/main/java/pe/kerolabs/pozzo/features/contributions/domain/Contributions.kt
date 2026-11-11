@@ -180,6 +180,9 @@ interface ContributionRepository {
 
     /** A link to the image of the transfer of a pot that works for a few minutes. */
     suspend fun getPayoutProofUrl(periodId: String): Result<String>
+
+    /** The public link that proves a settled contribution, the same every time it is asked for. */
+    suspend fun shareContribution(contributionId: String): Result<String>
 }
 
 /**

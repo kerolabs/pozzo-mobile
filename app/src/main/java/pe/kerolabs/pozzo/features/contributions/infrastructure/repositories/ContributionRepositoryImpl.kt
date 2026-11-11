@@ -116,6 +116,9 @@ class ContributionRepositoryImpl @Inject constructor(
     override suspend fun getReceiptImageUrl(contributionId: String): Result<String> =
         apiCall { service.getReceiptImage(contributionId) }.map { it.url }
 
+    override suspend fun shareContribution(contributionId: String): Result<String> =
+        apiCall { service.shareContribution(contributionId) }.map { it.url }
+
     override suspend fun registerCash(
         periodId: String,
         membershipId: String,

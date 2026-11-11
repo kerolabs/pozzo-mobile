@@ -53,6 +53,9 @@ interface ContributionsService {
     @GET("contributions/{contributionId}/receipt-image")
     suspend fun getReceiptImage(@Path("contributionId") contributionId: String): Response<ReceiptImageDto>
 
+    @POST("contributions/{contributionId}/share")
+    suspend fun shareContribution(@Path("contributionId") contributionId: String): Response<ContributionShareLinkDto>
+
     @GET("periods/{periodId}/contributions/pending-review")
     suspend fun getPendingReviews(@Path("periodId") periodId: String): Response<List<ContributionDto>>
 

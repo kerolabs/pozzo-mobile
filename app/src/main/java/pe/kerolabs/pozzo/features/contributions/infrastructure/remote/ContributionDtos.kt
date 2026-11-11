@@ -84,6 +84,8 @@ data class ReceiptImageDto(val url: String, val expiresAt: String)
 
 data class PayoutProofDto(val periodId: String, val hasPayoutProof: Boolean)
 
+data class ContributionShareLinkDto(val token: String, val url: String)
+
 data class MyContributionsDto(
     val cycleId: String,
     val groupName: String,
