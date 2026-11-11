@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,7 @@ import pe.kerolabs.pozzo.features.savingsgroups.application.AddManualMemberUseCa
 import pe.kerolabs.pozzo.features.savingsgroups.application.DeleteGroupUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.GetGroupDetailUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.GetInvitationUseCase
+import pe.kerolabs.pozzo.features.savingsgroups.application.OpenNewCycleUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.RemoveMemberUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupDetail
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Invitation
@@ -48,6 +50,11 @@ data class GroupDetailUiState(
     val isDeleting: Boolean = false,
     /** The group no longer exists: the organizer deleted it, here or on another phone. */
     val closed: Boolean = false,
+    /** US39: the date of the first contribution of the next cycle, while the organizer picks it. */
+    val newCycleDate: LocalDate? = null,
+    val isOpeningNewCycle: Boolean = false,
+    /** The group of the next cycle, once opened, to go to it. */
+    val newCycleGroupId: String? = null,
 )
 
 @HiltViewModel
@@ -58,6 +65,7 @@ class GroupDetailViewModel @Inject constructor(
     private val removeMember: RemoveMemberUseCase,
     private val getInvitation: GetInvitationUseCase,
     private val deleteGroup: DeleteGroupUseCase,
+    private val openNewCycle: OpenNewCycleUseCase,
     incomingPushes: IncomingPushes,
 ) : ViewModel() {
 
@@ -157,4 +165,27 @@ class GroupDetailViewModel @Inject constructor(
     fun onInvitationHandled() = _state.update { it.copy(invitation = null) }
 
     fun onMessageShown() = _state.update { it.copy(message = null) }
+
+    /** Suggests one period after today as the first contribution of the next cycle. */
+    fun askNewCycle() = _state.update { it.copy(newCycleDate = LocalDate.now().plusMonths(1)) }
+
+    fun onNewCycleDate(value: LocalDate) = _state.update { it.copy(newCycleDate = value) }
+
+    fun dismissNewCycle() = _state.update { it.copy(newCycleDate = null) }
+
+    /** US39: a new group, still to start, with the same rules and members; it is adjusted and started as usual. */
+    fun confirmNewCycle() {
+        val date = _state.value.newCycleDate ?: return
+        if (_state.value.isOpeningNewCycle) return
+        viewModelScope.launch {
+            _state.update { it.copy(isOpeningNewCycle = true) }
+            openNewCycle(groupId, date)
+                .onSuccess { group -> _state.update { it.copy(isOpeningNewCycle = false, newCycleDate = null, newCycleGroupId = group.id) } }
+                .onFailure { error ->
+                    _state.update { it.copy(isOpeningNewCycle = false, newCycleDate = null, message = error.userMessage()) }
+                }
+        }
+    }
+
+    fun onNewCycleOpened() = _state.update { it.copy(newCycleGroupId = null) }
 }

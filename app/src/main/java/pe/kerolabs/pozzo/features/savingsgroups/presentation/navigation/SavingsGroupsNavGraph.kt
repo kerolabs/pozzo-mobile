@@ -168,6 +168,7 @@ fun NavGraphBuilder.savingsGroupsNavGraph(
                 onOpenPot = onOpenPot,
                 onEditGroup = { groupId -> navController.navigate(EditGroupRoute(groupId)) },
                 onClosed = { navController.popBackStack<MyGroupsRoute>(inclusive = false) },
+                onOpenGroup = { groupId -> navController.navigate(GroupDetailRoute(groupId)) { popUpTo<MyGroupsRoute>() } },
                 onShowInvitation = { groupName, invitation ->
                     val groupId = it.toRoute<GroupDetailRoute>().groupId
                     navController.navigate(InvitationRoute(groupId, groupName, invitation.code, invitation.link, fromDetail = true))
