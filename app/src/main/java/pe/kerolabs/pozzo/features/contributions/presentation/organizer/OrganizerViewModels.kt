@@ -137,7 +137,9 @@ abstract class SettleViewModel(
                             cycle = cycle,
                             period = period,
                             isLoading = false,
-                            amount = period.contributionAmount.stripTrailingZeros().toPlainString(),
+                            amount = period.unsettled.singleOrNull()?.let { period.amountOwedBy(it.membershipId) }
+                                ?.stripTrailingZeros()?.toPlainString()
+                                ?: period.contributionAmount.stripTrailingZeros().toPlainString(),
                             selectedMember = period.unsettled.singleOrNull()?.membershipId,
                             coveredBy = cycle.myMembershipId,
                         )
@@ -147,8 +149,13 @@ abstract class SettleViewModel(
         }
     }
 
+    /** Picking a member also proposes what they owe, which an auction may have lowered. */
     fun onMemberSelected(membershipId: String) = _state.update {
-        it.copy(selectedMember = membershipId, coveredBy = if (it.coveredBy == membershipId) null else it.coveredBy)
+        it.copy(
+            selectedMember = membershipId,
+            coveredBy = if (it.coveredBy == membershipId) null else it.coveredBy,
+            amount = it.period?.amountOwedBy(membershipId)?.stripTrailingZeros()?.toPlainString() ?: it.amount,
+        )
     }
 
     fun onCoveredBySelected(membershipId: String) = _state.update { it.copy(coveredBy = membershipId) }
