@@ -94,3 +94,8 @@ class ReviewContributionUseCase @Inject constructor(private val repository: Cont
 class DeliverPotUseCase @Inject constructor(private val repository: ContributionRepository) {
     suspend operator fun invoke(periodId: String) = repository.deliverPot(periodId)
 }
+
+class SwapTurnsUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(cycleId: String, firstMembershipId: String, secondMembershipId: String) =
+        repository.swapTurns(cycleId, firstMembershipId, secondMembershipId)
+}

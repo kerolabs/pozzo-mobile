@@ -17,6 +17,7 @@ import pe.kerolabs.pozzo.features.contributions.presentation.organizer.ReviewDet
 import pe.kerolabs.pozzo.features.contributions.presentation.organizer.ReviewsScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.pot.PotScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.register.RegisterContributionScreen
+import pe.kerolabs.pozzo.features.contributions.presentation.turnswap.SwapTurnsScreen
 
 @Serializable
 data class PotRoute(val groupId: String)
@@ -47,6 +48,9 @@ data class TurnCalendarRoute(val groupId: String)
 
 @Serializable
 data class AuctionRoute(val groupId: String)
+
+@Serializable
+data class SwapTurnsRoute(val groupId: String)
 
 @Serializable
 data class CycleClosedRoute(val groupName: String, val totalTurns: Int, val potAmount: String)
@@ -100,8 +104,16 @@ fun NavGraphBuilder.contributionsNavGraph(
         MyContributionsScreen(onBack = { navController.popBackStack() })
     }
 
-    composable<TurnCalendarRoute> {
-        TurnCalendarScreen(onBack = { navController.popBackStack() })
+    composable<TurnCalendarRoute> { entry ->
+        val groupId = entry.toRoute<TurnCalendarRoute>().groupId
+        TurnCalendarScreen(
+            onBack = { navController.popBackStack() },
+            onSwapTurns = { navController.navigate(SwapTurnsRoute(groupId)) },
+        )
+    }
+
+    composable<SwapTurnsRoute> {
+        SwapTurnsScreen(onBack = { navController.popBackStack() }, onSwapped = { navController.popBackStack() })
     }
 
     composable<ReviewsRoute> { entry ->

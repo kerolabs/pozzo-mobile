@@ -157,6 +157,9 @@ interface ContributionRepository {
     suspend fun review(contributionId: String, decision: ReviewDecision, note: String?): Result<Contribution>
 
     suspend fun deliverPot(periodId: String): Result<PotDelivery>
+
+    /** Swaps the turns of two members whose periods have not started; only the organizer can. */
+    suspend fun swapTurns(cycleId: String, firstMembershipId: String, secondMembershipId: String): Result<Cycle>
 }
 
 /**

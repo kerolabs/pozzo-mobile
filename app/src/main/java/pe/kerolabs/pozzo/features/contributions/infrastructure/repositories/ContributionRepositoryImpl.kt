@@ -29,12 +29,14 @@ import pe.kerolabs.pozzo.features.contributions.infrastructure.local.MyContribut
 import pe.kerolabs.pozzo.features.contributions.infrastructure.local.MyContributionsEntity
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ContributionDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ContributionsService
+import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.CycleDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.MyContributionsDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.PeriodStatusDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ReceiptDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.RegisterCashRequestDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.RegisterCoverageRequestDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ReviewRequestDto
+import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.SwapTurnsRequestDto
 
 class ContributionRepositoryImpl @Inject constructor(
     private val service: ContributionsService,
@@ -44,24 +46,27 @@ class ContributionRepositoryImpl @Inject constructor(
     private val gson = Gson()
 
     override suspend fun getCycleOfGroup(groupId: String): Result<Cycle> =
-        apiCall { service.getCycleOfGroup(groupId) }.map { dto ->
-            Cycle(
-                id = dto.id,
-                groupId = dto.groupId,
-                groupName = dto.groupName,
-                isActive = dto.status == "ACTIVE",
-                currentTurn = dto.currentTurn,
-                totalTurns = dto.totalTurns,
-                contributionAmount = dto.contributionAmount,
-                potAmount = dto.potAmount,
-                destinationMethod = dto.destinationMethod,
-                destinationPhone = dto.destinationPhoneNumber,
-                payeeName = dto.payeeName,
-                isOrganizer = dto.role == "ORGANIZER",
-                myMembershipId = dto.myMembershipId,
-                myTurnNumber = dto.myTurnNumber,
-            )
-        }
+        apiCall { service.getCycleOfGroup(groupId) }.map { it.toDomain() }
+
+    override suspend fun swapTurns(cycleId: String, firstMembershipId: String, secondMembershipId: String): Result<Cycle> =
+        apiCall { service.swapTurns(cycleId, SwapTurnsRequestDto(firstMembershipId, secondMembershipId)) }.map { it.toDomain() }
+
+    private fun CycleDto.toDomain() = Cycle(
+        id = id,
+        groupId = groupId,
+        groupName = groupName,
+        isActive = status == "ACTIVE",
+        currentTurn = currentTurn,
+        totalTurns = totalTurns,
+        contributionAmount = contributionAmount,
+        potAmount = potAmount,
+        destinationMethod = destinationMethod,
+        destinationPhone = destinationPhoneNumber,
+        payeeName = payeeName,
+        isOrganizer = role == "ORGANIZER",
+        myMembershipId = myMembershipId,
+        myTurnNumber = myTurnNumber,
+    )
 
     override suspend fun getCurrentPeriod(cycleId: String): Result<Period> =
         apiCall { service.getCurrentPeriod(cycleId) }.map { it.toDomain() }

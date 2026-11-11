@@ -61,4 +61,7 @@ interface ContributionsService {
 
     @POST("periods/{periodId}/payout")
     suspend fun deliverPot(@Path("periodId") periodId: String): Response<PotDeliveryDto>
+
+    @POST("cycles/{cycleId}/turns/swap")
+    suspend fun swapTurns(@Path("cycleId") cycleId: String, @Body request: SwapTurnsRequestDto): Response<CycleDto>
 }
