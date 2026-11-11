@@ -38,6 +38,9 @@ interface GroupsService {
     @POST("groups/{groupId}/start")
     suspend fun startGroup(@Path("groupId") groupId: String): Response<GroupDto>
 
+    @POST("groups/{groupId}/new-cycle")
+    suspend fun openNewCycle(@Path("groupId") groupId: String, @Body request: OpenNewCycleRequestDto): Response<GroupDto>
+
     @POST("groups/{groupId}/invitations")
     suspend fun generateInvitation(@Path("groupId") groupId: String): Response<InvitationDto>
 
