@@ -17,6 +17,9 @@ interface AuctionsService {
 
     @POST("periods/{periodId}/auction/bids")
     suspend fun placeBid(@Path("periodId") periodId: String, @Body request: PlaceBidRequestDto): Response<AuctionDto>
+
+    @POST("periods/{periodId}/auction/close")
+    suspend fun closeAuction(@Path("periodId") periodId: String, @Body request: CloseAuctionRequestDto): Response<AuctionDto>
 }
 
 data class AuctionDto(
@@ -48,3 +51,5 @@ data class AuctionBidDto(
 )
 
 data class PlaceBidRequestDto(val amount: BigDecimal)
+
+data class CloseAuctionRequestDto(val winnerMembershipId: String?)
