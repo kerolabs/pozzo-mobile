@@ -54,6 +54,7 @@ import pe.kerolabs.pozzo.features.compliancehistory.presentation.navigation.Hist
 import pe.kerolabs.pozzo.features.compliancehistory.presentation.navigation.MyHistoryRoute
 import pe.kerolabs.pozzo.features.compliancehistory.presentation.navigation.complianceHistoryNavGraph
 import pe.kerolabs.pozzo.features.contributions.presentation.navigation.MyContributionsRoute
+import pe.kerolabs.pozzo.features.contributions.presentation.navigation.PastPeriodsRoute
 import pe.kerolabs.pozzo.features.contributions.presentation.navigation.PotRoute
 import pe.kerolabs.pozzo.features.contributions.presentation.navigation.ReviewsRoute
 import pe.kerolabs.pozzo.features.contributions.presentation.navigation.contributionsNavGraph
@@ -208,6 +209,7 @@ fun AppNavHost(
             savingsGroupsNavGraph(
                 navController,
                 onOpenPot = { navController.navigate(PotRoute(it)) },
+                onPastPeriods = { navController.navigate(PastPeriodsRoute(it)) },
                 onOpenProfile = { navController.navigateToTop(TopDestination.PROFILE) },
             )
             contributionsNavGraph(

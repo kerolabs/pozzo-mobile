@@ -120,6 +120,7 @@ fun GroupDetailScreen(
     onAssignTurns: (groupId: String, seats: Int) -> Unit,
     onStartGroup: (groupId: String) -> Unit,
     onOpenPot: (groupId: String) -> Unit,
+    onPastPeriods: (groupId: String) -> Unit,
     onEditGroup: (groupId: String) -> Unit,
     onClosed: () -> Unit,
     onShowInvitation: (groupName: String, invitation: Invitation) -> Unit,
@@ -263,9 +264,16 @@ fun GroupDetailScreen(
                 Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     PozzoPrimaryButton(text = "Ver el pozo", onClick = { onOpenPot(viewModel.groupId) })
                 }
-            } else if (detail != null && detail.group.status == GroupStatus.CLOSED && detail.group.isOrganizer) {
-                Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    PozzoPrimaryButton(text = "Abrir un nuevo ciclo", onClick = viewModel::askNewCycle)
+            } else if (detail != null && detail.group.status == GroupStatus.CLOSED) {
+                // A closed group has no pot to open, but its periods stay readable for every member (US32).
+                Column(
+                    Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    PozzoOutlinedButton(text = "Ver los períodos del ciclo", onClick = { onPastPeriods(viewModel.groupId) })
+                    if (detail.group.isOrganizer) {
+                        PozzoPrimaryButton(text = "Abrir un nuevo ciclo", onClick = viewModel::askNewCycle)
+                    }
                 }
             } else if (canEdit && detail != null) {
                 MainAction(
