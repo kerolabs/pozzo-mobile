@@ -55,6 +55,7 @@ import pe.kerolabs.pozzo.core.designsystem.components.PozzoTopBar
 import pe.kerolabs.pozzo.core.designsystem.theme.PozzoThemeExtras
 import pe.kerolabs.pozzo.core.format.formatMediumDate
 import pe.kerolabs.pozzo.core.format.formatSoles
+import pe.kerolabs.pozzo.features.savingsgroups.domain.TurnMethod
 import pe.kerolabs.pozzo.features.savingsgroups.domain.cutoffDateOfTurn
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.ChecklistItem
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.ReadinessChecklist
@@ -265,7 +266,11 @@ fun StartGroupScreen(
                                 .padding(20.dp),
                         ) {
                             Text("Primer período", style = MaterialTheme.typography.titleSmall, color = colors.onPrimaryContainer)
-                            Text("Cobra ${first.displayName}", style = MaterialTheme.typography.headlineMedium, color = colors.onPrimaryContainer)
+                            Text(
+                                if (group.turnMethod == TurnMethod.AUCTION) "Se subasta" else "Cobra ${first.displayName}",
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = colors.onPrimaryContainer,
+                            )
                             Text(
                                 "Corte: ${formatMediumDate(first.cutoffDate)} · Pozo ${formatSoles(group.potAmount)}",
                                 style = MaterialTheme.typography.bodyLarge,
