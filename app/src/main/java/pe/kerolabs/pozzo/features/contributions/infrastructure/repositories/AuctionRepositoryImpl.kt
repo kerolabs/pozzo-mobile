@@ -13,6 +13,7 @@ import pe.kerolabs.pozzo.features.contributions.domain.AuctionResolution
 import pe.kerolabs.pozzo.features.contributions.domain.AuctionStatus
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.AuctionDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.AuctionsService
+import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.CloseAuctionRequestDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.PlaceBidRequestDto
 
 /**
@@ -26,6 +27,9 @@ class AuctionRepositoryImpl @Inject constructor(private val service: AuctionsSer
 
     override suspend fun placeBid(periodId: String, amount: BigDecimal): Result<Auction> =
         apiCall { service.placeBid(periodId, PlaceBidRequestDto(amount)) }.map { it.toDomain() }
+
+    override suspend fun closeAuction(periodId: String, winnerMembershipId: String?): Result<Auction> =
+        apiCall { service.closeAuction(periodId, CloseAuctionRequestDto(winnerMembershipId)) }.map { it.toDomain() }
 }
 
 internal fun AuctionDto.toDomain() = Auction(

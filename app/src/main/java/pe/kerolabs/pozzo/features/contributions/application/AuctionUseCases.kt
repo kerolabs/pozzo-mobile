@@ -37,3 +37,7 @@ class FindAuctionUseCase @Inject constructor(private val auctions: AuctionReposi
 class PlaceBidUseCase @Inject constructor(private val auctions: AuctionRepository) {
     suspend operator fun invoke(periodId: String, amount: BigDecimal) = auctions.placeBid(periodId, amount)
 }
+
+class CloseAuctionUseCase @Inject constructor(private val auctions: AuctionRepository) {
+    suspend operator fun invoke(periodId: String, winnerMembershipId: String?) = auctions.closeAuction(periodId, winnerMembershipId)
+}

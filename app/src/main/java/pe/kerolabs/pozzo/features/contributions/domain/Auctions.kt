@@ -55,4 +55,10 @@ interface AuctionRepository {
 
     /** Places or replaces the bid of the requester; only the latest bid of each member counts. */
     suspend fun placeBid(periodId: String, amount: BigDecimal): Result<Auction>
+
+    /**
+     * Closes the auction: the turn goes to the highest bid. Without bids it goes by draw, or to [winnerMembershipId]
+     * when the organizer chooses, which is required when the group decided that the organizer chooses.
+     */
+    suspend fun closeAuction(periodId: String, winnerMembershipId: String?): Result<Auction>
 }
