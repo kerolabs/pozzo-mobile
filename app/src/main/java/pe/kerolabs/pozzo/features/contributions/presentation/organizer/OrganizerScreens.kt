@@ -67,6 +67,7 @@ import pe.kerolabs.pozzo.features.contributions.presentation.common.MemberOption
 import pe.kerolabs.pozzo.features.contributions.presentation.common.ReceiptImageViewer
 import pe.kerolabs.pozzo.features.contributions.presentation.common.fieldLabel
 import pe.kerolabs.pozzo.features.contributions.presentation.common.inconsistencyLabel
+import pe.kerolabs.pozzo.features.contributions.presentation.payout.AttachPayoutProofButton
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.rememberMemberPhotos
 
 /** The common frame of the organizer's screens: top bar, scrollable body and actions at the bottom. */
@@ -382,7 +383,7 @@ fun CoverScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: CoverViewMode
 fun DeliverScreen(
     onBack: () -> Unit,
     onNextPeriod: () -> Unit,
-    onCycleClosed: (groupName: String, totalTurns: Int, potAmount: String) -> Unit,
+    onCycleClosed: (groupId: String, deliveredPeriodId: String, groupName: String, totalTurns: Int, potAmount: String) -> Unit,
     viewModel: DeliverViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -392,7 +393,7 @@ fun DeliverScreen(
     LaunchedEffect(state.delivery) {
         val delivery = state.delivery ?: return@LaunchedEffect
         if (delivery.cycleClosed && cycle != null) {
-            onCycleClosed(cycle.groupName, cycle.totalTurns, cycle.potAmount.toPlainString())
+            onCycleClosed(viewModel.groupId, delivery.deliveredPeriodId, cycle.groupName, cycle.totalTurns, cycle.potAmount.toPlainString())
         }
     }
     val delivery = state.delivery
@@ -400,9 +401,11 @@ fun DeliverScreen(
         ResultLayout(
             icon = Icons.Filled.CheckCircle,
             title = "Pozo entregado",
-            message = "${formatSoles(delivery.deliveredAmount)} a ${period.payoutMemberName}. Ya empezó el período ${delivery.nextTurn}.",
+            message = "${formatSoles(delivery.deliveredAmount)} a ${period.payoutMemberName}. Ya empezó el período ${delivery.nextTurn}. " +
+                "Adjunta la transferencia para que todos la vean.",
             action = "Ver el nuevo período",
             onAction = onNextPeriod,
+            extra = { AttachPayoutProofButton(delivery.deliveredPeriodId) },
         )
         return
     }
@@ -434,8 +437,15 @@ fun DeliverScreen(
         ) {
             val onBrand = MaterialTheme.colorScheme.onPrimaryContainer
             Text("Período ${period.turnNumber} de ${period.totalTurns} · Pozo completo", style = MaterialTheme.typography.titleSmall, color = onBrand)
-            Text(formatSoles(period.collectedAmount), style = MaterialTheme.typography.displayMedium, color = onBrand)
+            Text(formatSoles(period.payoutAmount), style = MaterialTheme.typography.displayMedium, color = onBrand)
             Text("para ${period.payoutMemberName}", style = MaterialTheme.typography.bodyLarge, color = onBrand)
+        }
+        if (period.auctionDiscount.signum() > 0) {
+            InfoBanner(
+                "Entrega ${formatSoles(period.payoutAmount)}: el pozo de ${formatSoles(period.potAmount)} menos el descuento de " +
+                    "${formatSoles(period.auctionDiscount)} que ${period.payoutMemberName.substringBefore(' ')} ofreció en la subasta.",
+                Icons.Outlined.Info,
+            )
         }
         SummaryCard(
             rows = listOf(
@@ -459,21 +469,42 @@ fun DeliverScreen(
     }
 }
 
-/** H6: every member collected their turn and the cycle is closed. */
+/**
+ * H6: every member collected their turn and the cycle is closed. The organizer can still attach the transfer
+ * of the last pot, and open the next cycle from the group (US39).
+ */
 @Composable
-fun CycleClosedScreen(groupName: String, totalTurns: Int, potAmount: String, onDone: () -> Unit) {
+fun CycleClosedScreen(
+    groupName: String,
+    totalTurns: Int,
+    potAmount: String,
+    lastPeriodId: String?,
+    onOpenGroup: () -> Unit,
+    onDone: () -> Unit,
+) {
     ResultLayout(
         icon = Icons.Outlined.Celebration,
         title = "¡Ciclo completado!",
         message = "Los $totalTurns integrantes de $groupName recibieron su pozo de ${formatSoles(potAmount.toBigDecimal())}. " +
-            "El historial de cumplimiento de cada uno ya está actualizado.",
+            "El historial de cumplimiento de cada uno ya está actualizado. Si quieren seguir, abre un nuevo ciclo desde la junta.",
         action = "Volver a mis juntas",
         onAction = onDone,
+        extra = {
+            lastPeriodId?.let { AttachPayoutProofButton(it) }
+            PozzoOutlinedButton(text = "Ver la junta y abrir un nuevo ciclo", onClick = onOpenGroup)
+        },
     )
 }
 
 @Composable
-private fun ResultLayout(icon: ImageVector, title: String, message: String, action: String, onAction: () -> Unit) {
+private fun ResultLayout(
+    icon: ImageVector,
+    title: String,
+    message: String,
+    action: String,
+    onAction: () -> Unit,
+    extra: @Composable ColumnScope.() -> Unit = {},
+) {
     Scaffold { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 8.dp),
@@ -495,6 +526,8 @@ private fun ResultLayout(icon: ImageVector, title: String, message: String, acti
                     textAlign = TextAlign.Center,
                 )
             }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { extra() }
+            Spacer(Modifier.height(8.dp))
             PozzoPrimaryButton(text = action, onClick = onAction)
             Spacer(Modifier.height(8.dp))
         }

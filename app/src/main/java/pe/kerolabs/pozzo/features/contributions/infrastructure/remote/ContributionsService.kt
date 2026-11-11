@@ -61,4 +61,14 @@ interface ContributionsService {
 
     @POST("periods/{periodId}/payout")
     suspend fun deliverPot(@Path("periodId") periodId: String): Response<PotDeliveryDto>
+
+    @Multipart
+    @PUT("periods/{periodId}/payout/proof")
+    suspend fun attachPayoutProof(
+        @Path("periodId") periodId: String,
+        @Part image: MultipartBody.Part,
+    ): Response<PayoutProofDto>
+
+    @GET("periods/{periodId}/payout/proof")
+    suspend fun getPayoutProof(@Path("periodId") periodId: String): Response<ReceiptImageDto>
 }

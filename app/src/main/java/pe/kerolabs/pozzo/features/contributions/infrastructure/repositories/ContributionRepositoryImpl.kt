@@ -132,8 +132,16 @@ class ContributionRepositoryImpl @Inject constructor(
 
     override suspend fun deliverPot(periodId: String): Result<PotDelivery> =
         apiCall { service.deliverPot(periodId) }.map {
-            PotDelivery(it.deliveredTurn, it.deliveredAmount, it.cycleStatus == "CLOSED", it.nextTurn)
+            PotDelivery(it.deliveredPeriodId, it.deliveredTurn, it.deliveredAmount, it.cycleStatus == "CLOSED", it.nextTurn)
         }
+
+    override suspend fun attachPayoutProof(periodId: String, jpeg: ByteArray): Result<Unit> {
+        val part = MultipartBody.Part.createFormData("image", "transfer.jpg", jpeg.toRequestBody("image/jpeg".toMediaType()))
+        return apiCall { service.attachPayoutProof(periodId, part) }.map { }
+    }
+
+    override suspend fun getPayoutProofUrl(periodId: String): Result<String> =
+        apiCall { service.getPayoutProof(periodId) }.map { it.url }
 
     private fun PeriodStatusDto.toDomain() = Period(
         id = periodId,
@@ -163,6 +171,9 @@ class ContributionRepositoryImpl @Inject constructor(
                 it.contributionId,
             )
         },
+        payoutAmount = payoutAmount ?: potAmount,
+        deliveredAt = deliveredAt?.let(Instant::parse),
+        hasPayoutProof = hasPayoutProof,
     )
 
     private fun MyContributionsDto.toDomain(savedAt: Instant, isOffline: Boolean) = MyContributions(

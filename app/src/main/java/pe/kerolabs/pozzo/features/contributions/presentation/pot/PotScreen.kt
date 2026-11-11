@@ -78,6 +78,7 @@ import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.rememberMemb
  * @param onDeliver Callback allowing the organizer to mark the pot as delivered to the turn recipient.
  * @param onGroupDetail Callback to navigate to general group settings and member rosters.
  * @param onCalendar Callback to inspect the rotation turns calendar.
+ * @param onPastPeriods Callback to see the periods already closed, with who collected and the transfer of the pot.
  * @param viewModel ViewModel managing cycle data, member payment statuses, and pot progression.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,6 +92,7 @@ fun PotScreen(
     onDeliver: (groupId: String) -> Unit,
     onGroupDetail: (groupId: String) -> Unit,
     onCalendar: (groupId: String) -> Unit,
+    onPastPeriods: (groupId: String) -> Unit,
     viewModel: PotViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -131,6 +133,10 @@ fun PotScreen(
                             DropdownMenuItem(text = { Text("Detalle de la junta") }, onClick = {
                                 menuOpen = false
                                 onGroupDetail(groupId)
+                            })
+                            DropdownMenuItem(text = { Text("Períodos anteriores") }, onClick = {
+                                menuOpen = false
+                                onPastPeriods(groupId)
                             })
                             if (cycle?.isOrganizer == true && period?.state == PeriodState.OPEN) {
                                 DropdownMenuItem(text = { Text("Registrar aporte en efectivo") }, onClick = {
@@ -296,7 +302,12 @@ private fun PotActions(cycle: Cycle, period: Period, onContribute: () -> Unit, o
         Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (deliver) PozzoPrimaryButton(text = "Entregar el pozo a ${period.payoutMemberName.substringBefore(' ')}", onClick = onDeliver)
+        if (deliver) {
+            PozzoPrimaryButton(
+                text = "Entregar ${formatSoles(period.payoutAmount)} a ${period.payoutMemberName.substringBefore(' ')}",
+                onClick = onDeliver,
+            )
+        }
         if (reviews) {
             PozzoOutlinedButton(text = "Revisar aportes (${period.inReviewCount})", onClick = onReviews, icon = Icons.Outlined.FactCheck)
         }

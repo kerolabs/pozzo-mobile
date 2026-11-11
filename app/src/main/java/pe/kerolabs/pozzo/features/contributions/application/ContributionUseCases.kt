@@ -94,3 +94,16 @@ class ReviewContributionUseCase @Inject constructor(private val repository: Cont
 class DeliverPotUseCase @Inject constructor(private val repository: ContributionRepository) {
     suspend operator fun invoke(periodId: String) = repository.deliverPot(periodId)
 }
+
+/** US36: keeps the image of the transfer of a delivered pot, made lighter on the phone before it is uploaded. */
+class AttachPayoutProofUseCase @Inject constructor(
+    private val repository: ContributionRepository,
+    private val reader: ReceiptImageReader,
+) {
+    suspend operator fun invoke(periodId: String, imageUri: Uri): Result<Unit> =
+        runCatching { reader.read(imageUri) }.mapCatching { jpeg -> repository.attachPayoutProof(periodId, jpeg).getOrThrow() }
+}
+
+class GetPayoutProofUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(periodId: String) = repository.getPayoutProofUrl(periodId)
+}
