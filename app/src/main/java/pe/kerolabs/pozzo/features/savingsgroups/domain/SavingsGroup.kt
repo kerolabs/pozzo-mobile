@@ -138,6 +138,20 @@ interface SavingsGroupRepository {
 
     suspend fun removeMember(groupId: String, membershipId: String): Result<Unit>
 
+    /** Records that a member left a group in progress; their turn waits for a replacement. */
+    suspend fun registerDropout(groupId: String, membershipId: String): Result<List<Member>>
+
+    /**
+     * Gives the turn of a member who dropped out to a replacement: with the number of a Pozzo account they join
+     * with it, otherwise as a member without the application.
+     */
+    suspend fun replaceMember(
+        groupId: String,
+        droppedMembershipId: String,
+        displayName: String,
+        phoneNumber: String?,
+    ): Result<List<Member>>
+
     /** Draws the collection order; drawing again replaces the previous result until the group starts. */
     suspend fun drawTurns(groupId: String): Result<TurnCalendar>
 

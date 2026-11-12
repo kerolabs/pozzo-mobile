@@ -36,6 +36,7 @@ import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.GroupDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.GroupsService
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.InvitationDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.MemberDto
+import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.ReplaceMemberRequestDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.TurnCalendarDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.UpdateRulesRequestDto
 
@@ -125,6 +126,18 @@ class SavingsGroupRepositoryImpl @Inject constructor(
 
     override suspend fun removeMember(groupId: String, membershipId: String): Result<Unit> =
         apiCall { service.removeMember(groupId, membershipId) }.map { }
+
+    override suspend fun registerDropout(groupId: String, membershipId: String): Result<List<Member>> =
+        apiCall { service.registerDropout(groupId, membershipId) }.map { members -> members.map { it.toDomain() } }
+
+    override suspend fun replaceMember(
+        groupId: String,
+        droppedMembershipId: String,
+        displayName: String,
+        phoneNumber: String?,
+    ): Result<List<Member>> =
+        apiCall { service.replaceMember(groupId, droppedMembershipId, ReplaceMemberRequestDto(displayName, phoneNumber)) }
+            .map { members -> members.map { it.toDomain() } }
 
     override suspend fun drawTurns(groupId: String): Result<TurnCalendar> =
         apiCall { service.drawTurns(groupId) }.map { it.toDomain() }

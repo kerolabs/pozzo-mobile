@@ -64,6 +64,15 @@ class RemoveMemberUseCase @Inject constructor(private val repository: SavingsGro
     suspend operator fun invoke(groupId: String, membershipId: String) = repository.removeMember(groupId, membershipId)
 }
 
+class RegisterDropoutUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String, membershipId: String) = repository.registerDropout(groupId, membershipId)
+}
+
+class ReplaceMemberUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String, droppedMembershipId: String, displayName: String, phoneNumber: String?) =
+        repository.replaceMember(groupId, droppedMembershipId, displayName.trim(), phoneNumber?.takeIf { it.isNotBlank() })
+}
+
 class DrawTurnsUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
     suspend operator fun invoke(groupId: String) = repository.drawTurns(groupId)
 }
