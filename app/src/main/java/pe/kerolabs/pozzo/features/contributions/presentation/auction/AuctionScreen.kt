@@ -53,13 +53,14 @@ import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.rememberMemb
 /**
  * US20: the auction of the turn in progress. Shows when it closes, the pot and the bids from the highest to
  * the lowest with what each bidder would receive; a member who has not collected places or improves a bid.
- * [organizerActions] adds what the organizer can do with the auction, such as closing it.
+ * [organizerActions] adds what the organizer can do with the auction, such as closing it; it hands back the
+ * auction as it was left, so the screen shows it right away.
  */
 @Composable
 fun AuctionScreen(
     onBack: () -> Unit,
     viewModel: AuctionViewModel = hiltViewModel(),
-    organizerActions: @Composable ColumnScope.(auction: Auction, reload: () -> Unit) -> Unit = { _, _ -> },
+    organizerActions: @Composable ColumnScope.(auction: Auction, onChanged: (Auction) -> Unit) -> Unit = { _, _ -> },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -128,7 +129,7 @@ fun AuctionScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (turnAuction.cycle.isOrganizer) organizerActions(auction, viewModel::load)
+                if (turnAuction.cycle.isOrganizer) organizerActions(auction, viewModel::onAuctionChanged)
             }
         }
     }
