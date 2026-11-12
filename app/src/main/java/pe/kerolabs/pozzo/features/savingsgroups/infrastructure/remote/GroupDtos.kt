@@ -81,6 +81,8 @@ data class TurnDto(
 
 data class AgreedTurnsRequestDto(val order: List<String>)
 
+data class AuctionTurnsRequestDto(val closesDaysBeforeCutoff: Int, val minimumBid: BigDecimal, val fallback: String)
+
 data class InvitationDto(val code: String, val link: String, val expiresAt: String)
 
 data class GroupPreviewDto(
