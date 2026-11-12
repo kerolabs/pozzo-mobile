@@ -16,6 +16,7 @@ import pe.kerolabs.pozzo.features.savingsgroups.presentation.joingroup.JoinedScr
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.mygroups.MyGroupsScreen
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.turns.AgreedOrderScreen
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.turns.AssignTurnsScreen
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.turns.AuctionRulesScreen
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.turns.DrawResultScreen
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.turns.StartGroupScreen
 
@@ -73,6 +74,9 @@ data class AgreedOrderRoute(val groupId: String)
 
 @Serializable
 data class StartGroupRoute(val groupId: String)
+
+@Serializable
+data class AuctionRulesRoute(val groupId: String)
 
 /**
  * The groups of the member: the list, creating and joining a group, its detail, its turns and its start.
@@ -182,6 +186,7 @@ fun NavGraphBuilder.savingsGroupsNavGraph(
                 onBack = { navController.popBackStack() },
                 onDraw = { navController.navigate(DrawResultRoute(route.groupId)) },
                 onAgreedOrder = { navController.navigate(AgreedOrderRoute(route.groupId)) },
+                onAuction = { navController.navigate(AuctionRulesRoute(route.groupId)) },
             )
         }
 
@@ -191,6 +196,10 @@ fun NavGraphBuilder.savingsGroupsNavGraph(
 
         composable<AgreedOrderRoute> {
             AgreedOrderScreen(onBack = { navController.popBackStack() }, onSaved = backToDetail)
+        }
+
+        composable<AuctionRulesRoute> {
+            AuctionRulesScreen(onBack = { navController.popBackStack() }, onSaved = backToDetail)
         }
 
         composable<StartGroupRoute> {

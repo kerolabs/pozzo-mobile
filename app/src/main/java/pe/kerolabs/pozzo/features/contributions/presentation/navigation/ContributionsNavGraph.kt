@@ -5,6 +5,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
+import pe.kerolabs.pozzo.features.contributions.presentation.auction.AuctionScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.mycontributions.MyContributionsScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.mycontributions.TurnCalendarScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.organizer.CashScreen
@@ -44,6 +45,9 @@ data class MyContributionsRoute(val groupId: String)
 data class TurnCalendarRoute(val groupId: String)
 
 @Serializable
+data class AuctionRoute(val groupId: String)
+
+@Serializable
 data class CycleClosedRoute(val groupName: String, val totalTurns: Int, val potAmount: String)
 
 /**
@@ -67,7 +71,12 @@ fun NavGraphBuilder.contributionsNavGraph(
             onDeliver = { navController.navigate(DeliverRoute(it)) },
             onGroupDetail = onGroupDetail,
             onCalendar = { navController.navigate(TurnCalendarRoute(it)) },
+            onAuction = { navController.navigate(AuctionRoute(it)) },
         )
+    }
+
+    composable<AuctionRoute> {
+        AuctionScreen(onBack = { navController.popBackStack() })
     }
 
     composable<RegisterContributionRoute> { entry ->

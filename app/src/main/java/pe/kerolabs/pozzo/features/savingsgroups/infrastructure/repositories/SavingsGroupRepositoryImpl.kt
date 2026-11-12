@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import pe.kerolabs.pozzo.core.network.ApiException
 import pe.kerolabs.pozzo.core.network.apiCall
+import pe.kerolabs.pozzo.features.savingsgroups.domain.AuctionRules
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Destination
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupPreview
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupRole
@@ -28,6 +29,7 @@ import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.local.GroupDao
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.local.GroupEntity
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.AddManualMemberRequestDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.AgreedTurnsRequestDto
+import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.AuctionTurnsRequestDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.CreateGroupRequestDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.DestinationDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.GroupDto
@@ -129,6 +131,14 @@ class SavingsGroupRepositoryImpl @Inject constructor(
 
     override suspend fun assignAgreedTurns(groupId: String, order: List<String>): Result<TurnCalendar> =
         apiCall { service.assignAgreedTurns(groupId, AgreedTurnsRequestDto(order)) }.map { it.toDomain() }
+
+    override suspend fun assignTurnsByAuction(groupId: String, rules: AuctionRules): Result<TurnCalendar> =
+        apiCall {
+            service.assignTurnsByAuction(
+                groupId,
+                AuctionTurnsRequestDto(rules.closesDaysBeforeCutoff, rules.minimumBid, rules.fallback.name),
+            )
+        }.map { it.toDomain() }
 
     override suspend fun startGroup(groupId: String): Result<SavingsGroup> =
         apiCall { service.startGroup(groupId) }.map { dto -> saveLocally(dto) }

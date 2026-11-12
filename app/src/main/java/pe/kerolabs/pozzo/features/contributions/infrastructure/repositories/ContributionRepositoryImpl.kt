@@ -164,6 +164,7 @@ class ContributionRepositoryImpl @Inject constructor(
                 it.collects,
                 ContributionState.valueOf(it.status),
                 it.contributionId,
+                it.amount,
             )
         },
     )

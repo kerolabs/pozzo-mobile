@@ -76,4 +76,10 @@ interface GroupsService {
         @Path("groupId") groupId: String,
         @Body request: AgreedTurnsRequestDto,
     ): Response<TurnCalendarDto>
+
+    @POST("groups/{groupId}/turns/auction")
+    suspend fun assignTurnsByAuction(
+        @Path("groupId") groupId: String,
+        @Body request: AuctionTurnsRequestDto,
+    ): Response<TurnCalendarDto>
 }

@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.features.savingsgroups.application
 import javax.inject.Inject
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import pe.kerolabs.pozzo.features.savingsgroups.domain.AuctionRules
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupDetail
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Invitation
 import pe.kerolabs.pozzo.features.savingsgroups.domain.InvitationCodes
@@ -69,6 +70,10 @@ class DrawTurnsUseCase @Inject constructor(private val repository: SavingsGroupR
 
 class AssignAgreedTurnsUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
     suspend operator fun invoke(groupId: String, order: List<String>) = repository.assignAgreedTurns(groupId, order)
+}
+
+class AssignTurnsByAuctionUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String, rules: AuctionRules) = repository.assignTurnsByAuction(groupId, rules)
 }
 
 /** The photo of each member of a group, by membership; an empty map if it cannot be read. */
