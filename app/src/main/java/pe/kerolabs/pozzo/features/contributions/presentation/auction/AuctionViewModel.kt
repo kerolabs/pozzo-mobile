@@ -16,6 +16,7 @@ import pe.kerolabs.pozzo.core.network.userMessage
 import pe.kerolabs.pozzo.features.contributions.application.GetTurnAuctionUseCase
 import pe.kerolabs.pozzo.features.contributions.application.PlaceBidUseCase
 import pe.kerolabs.pozzo.features.contributions.application.TurnAuction
+import pe.kerolabs.pozzo.features.contributions.domain.Auction
 import pe.kerolabs.pozzo.features.contributions.presentation.navigation.AuctionRoute
 
 data class AuctionUiState(
@@ -80,4 +81,8 @@ class AuctionViewModel @Inject constructor(
     }
 
     fun onMessageShown() = _state.update { it.copy(message = null) }
+
+    /** Shows the auction as an action of the organizer left it, such as closed with its winner. */
+    fun onAuctionChanged(auction: Auction) =
+        _state.update { state -> state.copy(turnAuction = state.turnAuction?.copy(auction = auction)) }
 }

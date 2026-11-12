@@ -50,7 +50,8 @@ data class CloseAuctionUiState(
     val winner: String? = null,
     val isClosing: Boolean = false,
     val errorMessage: String? = null,
-    val closed: Boolean = false,
+    /** The auction once closed, with its winner, to hand back to the screen. */
+    val closed: Auction? = null,
 )
 
 /**
@@ -85,21 +86,21 @@ class CloseAuctionViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isClosing = true, errorMessage = null) }
             closeAuction(periodId, winnerMembershipId)
-                .onSuccess { _state.update { it.copy(isClosing = false, closed = true) } }
+                .onSuccess { auction -> _state.update { it.copy(isClosing = false, closed = auction) } }
                 .onFailure { error -> _state.update { it.copy(isClosing = false, errorMessage = error.userMessage()) } }
         }
     }
 
-    fun onClosedShown() = _state.update { it.copy(closed = false, winner = null) }
+    fun onClosedShown() = _state.update { it.copy(closed = null, winner = null) }
 }
 
 /**
- * The organizer's action on an open auction: close it now, before its closing day. [onClosed] reloads the
- * auction to show who won.
+ * The organizer's action on an open auction: close it now, before its closing day. [onClosed] gets the closed
+ * auction, with who won.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CloseAuctionAction(groupId: String, auction: Auction, onClosed: () -> Unit) {
+fun CloseAuctionAction(groupId: String, auction: Auction, onClosed: (Auction) -> Unit) {
     if (!auction.isOpen) return
     val viewModel: CloseAuctionViewModel = hiltViewModel(key = "close-auction-${auction.periodId}")
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -109,12 +110,11 @@ fun CloseAuctionAction(groupId: String, auction: Auction, onClosed: () -> Unit) 
 
     LaunchedEffect(groupId) { viewModel.loadCandidates(groupId) }
     LaunchedEffect(state.closed) {
-        if (state.closed) {
-            confirming = false
-            choosing = false
-            viewModel.onClosedShown()
-            onClosed()
-        }
+        val closed = state.closed ?: return@LaunchedEffect
+        confirming = false
+        choosing = false
+        viewModel.onClosedShown()
+        onClosed(closed)
     }
 
     state.errorMessage?.takeIf { !confirming && !choosing }?.let {

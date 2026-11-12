@@ -348,12 +348,16 @@ fun TurnCalendarScreen(onBack: () -> Unit, onSwapTurns: () -> Unit, viewModel: T
             items(calendar.turns, key = { it.turnNumber }) { turn ->
                 val collected = !cycle.isActive || turn.turnNumber < cycle.currentTurn
                 val current = cycle.isActive && turn.turnNumber == cycle.currentTurn
-                // In an auction the order after the turn in progress is provisional: nobody holds those turns yet.
+                // In an auction the order after the turn in progress is provisional: nobody holds those turns yet,
+                // and the winners of the turns already decided come from the periods of the cycle.
                 val toAuction = auctioned && !collected && !current
+                val winner = if (auctioned) state.winners[turn.turnNumber] else null
                 TurnCalendarRow(
                     number = turn.turnNumber,
                     name = when {
                         toAuction -> "Por subastar"
+                        auctioned && current && winner == null -> "En subasta"
+                        winner != null -> winner
                         turn.isMe -> "${turn.displayName} (tú)"
                         else -> turn.displayName
                     },

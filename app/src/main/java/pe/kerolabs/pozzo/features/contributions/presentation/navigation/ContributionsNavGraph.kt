@@ -84,7 +84,7 @@ fun NavGraphBuilder.contributionsNavGraph(
         val groupId = entry.toRoute<AuctionRoute>().groupId
         AuctionScreen(
             onBack = { navController.popBackStack() },
-            organizerActions = { auction, reload -> CloseAuctionAction(groupId, auction, onClosed = reload) },
+            organizerActions = { auction, onChanged -> CloseAuctionAction(groupId, auction, onClosed = onChanged) },
         )
     }
 
