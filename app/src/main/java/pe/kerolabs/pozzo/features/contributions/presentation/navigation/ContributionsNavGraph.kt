@@ -6,6 +6,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
 import pe.kerolabs.pozzo.features.contributions.presentation.auction.AuctionScreen
+import pe.kerolabs.pozzo.features.contributions.presentation.auction.CloseAuctionAction
 import pe.kerolabs.pozzo.features.contributions.presentation.mycontributions.MyContributionsScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.mycontributions.TurnCalendarScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.organizer.CashScreen
@@ -75,8 +76,12 @@ fun NavGraphBuilder.contributionsNavGraph(
         )
     }
 
-    composable<AuctionRoute> {
-        AuctionScreen(onBack = { navController.popBackStack() })
+    composable<AuctionRoute> { entry ->
+        val groupId = entry.toRoute<AuctionRoute>().groupId
+        AuctionScreen(
+            onBack = { navController.popBackStack() },
+            organizerActions = { auction, reload -> CloseAuctionAction(groupId, auction, onClosed = reload) },
+        )
     }
 
     composable<RegisterContributionRoute> { entry ->
