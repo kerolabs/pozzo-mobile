@@ -42,7 +42,7 @@ import pe.kerolabs.pozzo.core.designsystem.components.StatusChip
 import pe.kerolabs.pozzo.features.savingsgroups.domain.TurnMethod
 
 /**
- * E3: how the collection order is decided. Auctions are shown but not available yet.
+ * E3: how the collection order is decided: a draw, the order the group agreed, or an auction per period.
  */
 @Composable
 fun AssignTurnsScreen(
@@ -50,6 +50,7 @@ fun AssignTurnsScreen(
     onBack: () -> Unit,
     onDraw: () -> Unit,
     onAgreedOrder: () -> Unit,
+    onAuction: () -> Unit,
 ) {
     var method by rememberSaveable { mutableStateOf(TurnMethod.DRAW) }
     Scaffold(topBar = { PozzoTopBar(title = "Asignar turnos", onBack = onBack) }) { padding ->
@@ -80,15 +81,20 @@ fun AssignTurnsScreen(
             MethodCard(
                 icon = Icons.Outlined.Gavel,
                 title = "Subasta",
-                description = "Cada turno se asigna a quien ofrece el mayor descuento.",
-                selected = false,
-                onSelect = {},
-                enabled = false,
+                description = "Cada turno se asigna a quien ofrece el mayor descuento sobre el pozo.",
+                selected = method == TurnMethod.AUCTION,
+                onSelect = { method = TurnMethod.AUCTION },
             )
             Spacer(Modifier.weight(1f))
             PozzoPrimaryButton(
                 text = "Continuar",
-                onClick = { if (method == TurnMethod.DRAW) onDraw() else onAgreedOrder() },
+                onClick = {
+                    when (method) {
+                        TurnMethod.DRAW -> onDraw()
+                        TurnMethod.AGREED -> onAgreedOrder()
+                        TurnMethod.AUCTION -> onAuction()
+                    }
+                },
             )
             Spacer(Modifier.height(0.dp))
         }

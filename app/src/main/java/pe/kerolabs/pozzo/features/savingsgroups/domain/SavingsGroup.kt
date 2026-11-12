@@ -12,6 +12,19 @@ enum class Periodicity { WEEKLY, BIWEEKLY, MONTHLY }
 
 enum class TurnMethod { DRAW, AGREED, AUCTION }
 
+/** Who collects when nobody bids in the auction of a turn: a draw, or the member the organizer chooses. */
+enum class AuctionFallback { DRAW, ORGANIZER }
+
+/**
+ * How the turns of a group are auctioned: how many days before each cutoff the auction closes, the smallest
+ * discount accepted and what happens when nobody bids.
+ */
+data class AuctionRules(
+    val closesDaysBeforeCutoff: Int,
+    val minimumBid: BigDecimal,
+    val fallback: AuctionFallback,
+)
+
 /**
  * Conditions to start a group.
  */
@@ -130,6 +143,12 @@ interface SavingsGroupRepository {
 
     /** Sets the collection order agreed by the group: the first membership collects first. */
     suspend fun assignAgreedTurns(groupId: String, order: List<String>): Result<TurnCalendar>
+
+    /**
+     * Auctions the turns: each period opens an auction among the members who have not collected. The order it
+     * returns is provisional until each auction closes.
+     */
+    suspend fun assignTurnsByAuction(groupId: String, rules: AuctionRules): Result<TurnCalendar>
 
     /** Starts the group: its rules freeze and the first period opens. */
     suspend fun startGroup(groupId: String): Result<SavingsGroup>
