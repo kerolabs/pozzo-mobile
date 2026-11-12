@@ -12,7 +12,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kerolabs.pozzo.core.network.userMessage
+import pe.kerolabs.pozzo.features.contributions.application.FindAuctionUseCase
 import pe.kerolabs.pozzo.features.contributions.application.GetPotStateUseCase
+import pe.kerolabs.pozzo.features.contributions.domain.Auction
 import pe.kerolabs.pozzo.features.contributions.domain.Cycle
 import pe.kerolabs.pozzo.features.contributions.domain.Period
 import pe.kerolabs.pozzo.features.contributions.presentation.navigation.PotRoute
@@ -28,6 +30,8 @@ import pe.kerolabs.pozzo.features.contributions.presentation.navigation.PotRoute
 data class PotUiState(
     val cycle: Cycle? = null,
     val period: Period? = null,
+    /** The auction of the period, when the group auctions its turns. */
+    val auction: Auction? = null,
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
 )
@@ -45,6 +49,7 @@ data class PotUiState(
 class PotViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getPotState: GetPotStateUseCase,
+    private val findAuction: FindAuctionUseCase,
 ) : ViewModel() {
 
     val groupId: String = savedStateHandle.toRoute<PotRoute>().groupId
@@ -56,7 +61,11 @@ class PotViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = it.period == null, errorMessage = null) }
             getPotState(groupId)
-                .onSuccess { (cycle, period) -> _state.update { it.copy(isLoading = false, cycle = cycle, period = period) } }
+                .onSuccess { (cycle, period) ->
+                    _state.update { it.copy(isLoading = false, cycle = cycle, period = period) }
+                    val auction = findAuction(period.id)
+                    _state.update { it.copy(auction = auction) }
+                }
                 .onFailure { error -> _state.update { it.copy(isLoading = false, errorMessage = error.userMessage()) } }
         }
     }
