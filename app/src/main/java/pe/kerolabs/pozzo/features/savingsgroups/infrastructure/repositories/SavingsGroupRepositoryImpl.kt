@@ -34,6 +34,7 @@ import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.GroupDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.GroupsService
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.InvitationDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.MemberDto
+import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.OpenNewCycleRequestDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.TurnCalendarDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.UpdateRulesRequestDto
 
@@ -151,6 +152,10 @@ class SavingsGroupRepositoryImpl @Inject constructor(
 
     override suspend fun deleteGroup(groupId: String): Result<Unit> =
         apiCall { service.deleteGroup(groupId) }.map { dao.deleteById(groupId) }
+
+    override suspend fun openNewCycle(groupId: String, firstContributionDate: LocalDate): Result<SavingsGroup> =
+        apiCall { service.openNewCycle(groupId, OpenNewCycleRequestDto(firstContributionDate.toString())) }
+            .map { dto -> saveLocally(dto) }
 
     /** A group created, joined or read appears in the list right away, without waiting for a refresh. */
     private suspend fun saveLocally(dto: GroupDto): SavingsGroup {

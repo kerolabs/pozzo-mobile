@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreVert
@@ -27,6 +28,8 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,6 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
@@ -44,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,6 +67,9 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import kotlinx.coroutines.delay
 import pe.kerolabs.pozzo.core.designsystem.components.InitialsAvatar
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoOutlinedButton
@@ -107,6 +115,7 @@ fun GroupDetailScreen(
     onEditGroup: (groupId: String) -> Unit,
     onClosed: () -> Unit,
     onShowInvitation: (groupName: String, invitation: Invitation) -> Unit,
+    onOpenGroup: (groupId: String) -> Unit,
     viewModel: GroupDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -119,6 +128,12 @@ fun GroupDetailScreen(
         onPauseOrDispose { }
     }
     LaunchedEffect(state.closed) { if (state.closed) onClosed() }
+    LaunchedEffect(state.newCycleGroupId) {
+        state.newCycleGroupId?.let {
+            viewModel.onNewCycleOpened()
+            onOpenGroup(it)
+        }
+    }
     LaunchedEffect(state.message) {
         state.message?.let {
             snackbar.showSnackbar(it)
@@ -223,6 +238,10 @@ fun GroupDetailScreen(
                 Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     PozzoPrimaryButton(text = "Ver el pozo", onClick = { onOpenPot(viewModel.groupId) })
                 }
+            } else if (detail != null && detail.group.status == GroupStatus.CLOSED && detail.group.isOrganizer) {
+                Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    PozzoPrimaryButton(text = "Abrir un nuevo ciclo", onClick = viewModel::askNewCycle)
+                }
             } else if (canEdit && detail != null) {
                 MainAction(
                     detail = detail,
@@ -271,6 +290,16 @@ fun GroupDetailScreen(
                 )
             }
         }
+    }
+
+    state.newCycleDate?.let { date ->
+        NewCycleDialog(
+            date = date,
+            opening = state.isOpeningNewCycle,
+            onDateChange = viewModel::onNewCycleDate,
+            onConfirm = viewModel::confirmNewCycle,
+            onDismiss = viewModel::dismissNewCycle,
+        )
     }
 
     if (state.confirmingDelete && group != null) {
@@ -468,6 +497,55 @@ private fun MemberRow(member: Member, onOpen: () -> Unit) {
                 else -> StatusChip("Sin la app", status.warningContainer, status.onWarningContainer)
             }
         }
+    }
+}
+
+/** US39: the date of the first contribution of the next cycle, which can only be today or later. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NewCycleDialog(
+    date: LocalDate,
+    opening: Boolean,
+    onDateChange: (LocalDate) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var picking by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = { if (!opening) onDismiss() },
+        icon = { Icon(Icons.Outlined.Autorenew, contentDescription = null) },
+        title = { Text("Abrir un nuevo ciclo") },
+        text = {
+            Column {
+                Text(
+                    "Se crea una junta nueva con las mismas reglas, destino e integrantes, por iniciar. Podrás ajustarla, " +
+                        "asignar los turnos e iniciarla como siempre.",
+                )
+                Spacer(Modifier.height(16.dp))
+                PozzoOutlinedButton(text = "Primer aporte: ${formatMediumDate(date)}", onClick = { picking = true })
+            }
+        },
+        confirmButton = { TextButton(onClick = onConfirm, enabled = !opening) { Text("Abrir ciclo") } },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !opening) { Text("Cancelar") } },
+    )
+    if (picking) {
+        val today = LocalDate.now().atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        val picker = rememberDatePickerState(
+            initialSelectedDateMillis = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis >= today
+            },
+        )
+        DatePickerDialog(
+            onDismissRequest = { picking = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    picker.selectedDateMillis?.let { onDateChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
+                    picking = false
+                }) { Text("Aceptar") }
+            },
+            dismissButton = { TextButton(onClick = { picking = false }) { Text("Cancelar") } },
+        ) { DatePicker(state = picker) }
     }
 }
 
