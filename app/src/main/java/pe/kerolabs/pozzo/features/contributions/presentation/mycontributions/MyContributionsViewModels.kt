@@ -100,13 +100,10 @@ class TurnCalendarViewModel @Inject constructor(
     private val _state = MutableStateFlow(TurnCalendarUiState())
     val state: StateFlow<TurnCalendarUiState> = _state.asStateFlow()
 
-    init {
-        load()
-    }
-
+    /** Called every time the screen comes back, so a swap of turns shows up right away. */
     fun load() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null) }
+            _state.update { it.copy(isLoading = it.calendar == null, errorMessage = null) }
             val result = getCycleOfGroup(groupId).mapCatching { cycle -> cycle to getTurns(groupId).getOrThrow() }
             result
                 .onSuccess { (cycle, calendar) -> _state.update { it.copy(cycle = cycle, calendar = calendar, isLoading = false) } }

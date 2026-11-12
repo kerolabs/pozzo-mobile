@@ -104,6 +104,8 @@ data class RegisterCoverageRequestDto(val membershipId: String, val coveredByMem
 
 data class ReviewRequestDto(val decision: String, val note: String?)
 
+data class SwapTurnsRequestDto(val firstMembershipId: String, val secondMembershipId: String)
+
 data class PotDeliveryDto(
     val deliveredPeriodId: String,
     val deliveredTurn: Int,

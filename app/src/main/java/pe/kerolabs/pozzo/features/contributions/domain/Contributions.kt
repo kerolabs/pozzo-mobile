@@ -160,6 +160,9 @@ interface ContributionRepository {
 
     /** The public link that proves a settled contribution, the same every time it is asked for. */
     suspend fun shareContribution(contributionId: String): Result<String>
+
+    /** Swaps the turns of two members whose periods have not started; only the organizer can. */
+    suspend fun swapTurns(cycleId: String, firstMembershipId: String, secondMembershipId: String): Result<Cycle>
 }
 
 /**
