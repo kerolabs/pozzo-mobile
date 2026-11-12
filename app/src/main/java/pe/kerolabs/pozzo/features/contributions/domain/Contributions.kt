@@ -41,6 +41,8 @@ data class MemberContribution(
     val collects: Boolean,
     val state: ContributionState,
     val contributionId: String?,
+    /** What the member owes in the period: the contribution, less the credit of an auction. */
+    val amount: BigDecimal? = null,
 )
 
 /**
@@ -78,6 +80,13 @@ data class Period(
         get() = if (potAmount.signum() == 0) 0f else collectedAmount.toFloat() / potAmount.toFloat()
     val inReviewCount: Int get() = members.count { it.state == ContributionState.IN_REVIEW }
     val unsettled: List<MemberContribution> get() = members.filter { !it.state.isSettled && it.state != ContributionState.IN_REVIEW }
+
+    /** What a member owes in this period; the contribution of the group when the backend does not say. */
+    fun amountOwedBy(membershipId: String): BigDecimal =
+        members.firstOrNull { it.membershipId == membershipId }?.amount ?: contributionAmount
+
+    /** What the requester owes in this period. */
+    val myAmount: BigDecimal get() = members.firstOrNull { it.isMe }?.amount ?: contributionAmount
 }
 
 enum class ReceiptSource { YAPE, PLIN, BANK }
@@ -163,14 +172,17 @@ interface ContributionRepository {
 
     suspend fun deliverPot(periodId: String): Result<PotDelivery>
 
-    /** The public link that proves a settled contribution, the same every time it is asked for. */
-    suspend fun shareContribution(contributionId: String): Result<String>
+    /** Swaps the turns of two members whose periods have not started; only the organizer can. */
+    suspend fun swapTurns(cycleId: String, firstMembershipId: String, secondMembershipId: String): Result<Cycle>
 
     /** Keeps the image of the transfer with which a delivered pot was paid, as a JPEG. */
     suspend fun attachPayoutProof(periodId: String, jpeg: ByteArray): Result<Unit>
 
     /** A link to the image of the transfer of a pot that works for a few minutes. */
     suspend fun getPayoutProofUrl(periodId: String): Result<String>
+
+    /** The public link that proves a settled contribution, the same every time it is asked for. */
+    suspend fun shareContribution(contributionId: String): Result<String>
 }
 
 /**

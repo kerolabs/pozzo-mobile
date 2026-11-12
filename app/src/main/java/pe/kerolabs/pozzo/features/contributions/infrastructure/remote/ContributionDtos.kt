@@ -52,6 +52,7 @@ data class MemberStatusDto(
     val collects: Boolean,
     val status: String,
     val contributionId: String?,
+    val amount: BigDecimal? = null,
 )
 
 data class ReceiptDto(
@@ -81,9 +82,9 @@ data class ContributionDto(
 
 data class ReceiptImageDto(val url: String, val expiresAt: String)
 
-data class ContributionShareLinkDto(val token: String, val url: String)
-
 data class PayoutProofDto(val periodId: String, val hasPayoutProof: Boolean)
+
+data class ContributionShareLinkDto(val token: String, val url: String)
 
 data class MyContributionsDto(
     val cycleId: String,
@@ -107,6 +108,8 @@ data class RegisterCashRequestDto(val membershipId: String, val amount: BigDecim
 data class RegisterCoverageRequestDto(val membershipId: String, val coveredByMembershipId: String)
 
 data class ReviewRequestDto(val decision: String, val note: String?)
+
+data class SwapTurnsRequestDto(val firstMembershipId: String, val secondMembershipId: String)
 
 data class PotDeliveryDto(
     val deliveredPeriodId: String,

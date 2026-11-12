@@ -68,6 +68,19 @@ interface GroupsService {
         @Path("membershipId") membershipId: String,
     ): Response<Unit>
 
+    @POST("groups/{groupId}/members/{membershipId}/dropout")
+    suspend fun registerDropout(
+        @Path("groupId") groupId: String,
+        @Path("membershipId") membershipId: String,
+    ): Response<List<MemberDto>>
+
+    @POST("groups/{groupId}/members/{membershipId}/replacement")
+    suspend fun replaceMember(
+        @Path("groupId") groupId: String,
+        @Path("membershipId") membershipId: String,
+        @Body request: ReplaceMemberRequestDto,
+    ): Response<List<MemberDto>>
+
     @GET("groups/{groupId}/turns")
     suspend fun getTurns(@Path("groupId") groupId: String): Response<TurnCalendarDto>
 
@@ -78,5 +91,11 @@ interface GroupsService {
     suspend fun assignAgreedTurns(
         @Path("groupId") groupId: String,
         @Body request: AgreedTurnsRequestDto,
+    ): Response<TurnCalendarDto>
+
+    @POST("groups/{groupId}/turns/auction")
+    suspend fun assignTurnsByAuction(
+        @Path("groupId") groupId: String,
+        @Body request: AuctionTurnsRequestDto,
     ): Response<TurnCalendarDto>
 }

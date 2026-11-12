@@ -5,6 +5,8 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
+import pe.kerolabs.pozzo.features.contributions.presentation.auction.AuctionScreen
+import pe.kerolabs.pozzo.features.contributions.presentation.auction.CloseAuctionAction
 import pe.kerolabs.pozzo.features.contributions.presentation.mycontributions.MyContributionsScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.mycontributions.TurnCalendarScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.organizer.CashScreen
@@ -16,6 +18,7 @@ import pe.kerolabs.pozzo.features.contributions.presentation.organizer.ReviewsSc
 import pe.kerolabs.pozzo.features.contributions.presentation.periods.PastPeriodsScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.pot.PotScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.register.RegisterContributionScreen
+import pe.kerolabs.pozzo.features.contributions.presentation.turnswap.SwapTurnsScreen
 
 @Serializable
 data class PotRoute(val groupId: String)
@@ -43,6 +46,12 @@ data class MyContributionsRoute(val groupId: String)
 
 @Serializable
 data class TurnCalendarRoute(val groupId: String)
+
+@Serializable
+data class AuctionRoute(val groupId: String)
+
+@Serializable
+data class SwapTurnsRoute(val groupId: String)
 
 @Serializable
 data class PastPeriodsRoute(val groupId: String)
@@ -78,6 +87,15 @@ fun NavGraphBuilder.contributionsNavGraph(
             onGroupDetail = onGroupDetail,
             onCalendar = { navController.navigate(TurnCalendarRoute(it)) },
             onPastPeriods = { navController.navigate(PastPeriodsRoute(it)) },
+            onAuction = { navController.navigate(AuctionRoute(it)) },
+        )
+    }
+
+    composable<AuctionRoute> { entry ->
+        val groupId = entry.toRoute<AuctionRoute>().groupId
+        AuctionScreen(
+            onBack = { navController.popBackStack() },
+            organizerActions = { auction, onChanged -> CloseAuctionAction(groupId, auction, onClosed = onChanged) },
         )
     }
 
@@ -101,8 +119,16 @@ fun NavGraphBuilder.contributionsNavGraph(
         MyContributionsScreen(onBack = { navController.popBackStack() })
     }
 
-    composable<TurnCalendarRoute> {
-        TurnCalendarScreen(onBack = { navController.popBackStack() })
+    composable<TurnCalendarRoute> { entry ->
+        val groupId = entry.toRoute<TurnCalendarRoute>().groupId
+        TurnCalendarScreen(
+            onBack = { navController.popBackStack() },
+            onSwapTurns = { navController.navigate(SwapTurnsRoute(groupId)) },
+        )
+    }
+
+    composable<SwapTurnsRoute> {
+        SwapTurnsScreen(onBack = { navController.popBackStack() }, onSwapped = { navController.popBackStack() })
     }
 
     composable<ReviewsRoute> { entry ->

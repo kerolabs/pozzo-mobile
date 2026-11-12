@@ -100,6 +100,11 @@ class DeliverPotUseCase @Inject constructor(private val repository: Contribution
     suspend operator fun invoke(periodId: String) = repository.deliverPot(periodId)
 }
 
+class SwapTurnsUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(cycleId: String, firstMembershipId: String, secondMembershipId: String) =
+        repository.swapTurns(cycleId, firstMembershipId, secondMembershipId)
+}
+
 /** US36: keeps the image of the transfer of a delivered pot, made lighter on the phone before it is uploaded. */
 class AttachPayoutProofUseCase @Inject constructor(
     private val repository: ContributionRepository,

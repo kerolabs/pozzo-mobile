@@ -12,6 +12,19 @@ enum class Periodicity { WEEKLY, BIWEEKLY, MONTHLY }
 
 enum class TurnMethod { DRAW, AGREED, AUCTION }
 
+/** Who collects when nobody bids in the auction of a turn: a draw, or the member the organizer chooses. */
+enum class AuctionFallback { DRAW, ORGANIZER }
+
+/**
+ * How the turns of a group are auctioned: how many days before each cutoff the auction closes, the smallest
+ * discount accepted and what happens when nobody bids.
+ */
+data class AuctionRules(
+    val closesDaysBeforeCutoff: Int,
+    val minimumBid: BigDecimal,
+    val fallback: AuctionFallback,
+)
+
 /**
  * Conditions to start a group.
  */
@@ -125,11 +138,31 @@ interface SavingsGroupRepository {
 
     suspend fun removeMember(groupId: String, membershipId: String): Result<Unit>
 
+    /** Records that a member left a group in progress; their turn waits for a replacement. */
+    suspend fun registerDropout(groupId: String, membershipId: String): Result<List<Member>>
+
+    /**
+     * Gives the turn of a member who dropped out to a replacement: with the number of a Pozzo account they join
+     * with it, otherwise as a member without the application.
+     */
+    suspend fun replaceMember(
+        groupId: String,
+        droppedMembershipId: String,
+        displayName: String,
+        phoneNumber: String?,
+    ): Result<List<Member>>
+
     /** Draws the collection order; drawing again replaces the previous result until the group starts. */
     suspend fun drawTurns(groupId: String): Result<TurnCalendar>
 
     /** Sets the collection order agreed by the group: the first membership collects first. */
     suspend fun assignAgreedTurns(groupId: String, order: List<String>): Result<TurnCalendar>
+
+    /**
+     * Auctions the turns: each period opens an auction among the members who have not collected. The order it
+     * returns is provisional until each auction closes.
+     */
+    suspend fun assignTurnsByAuction(groupId: String, rules: AuctionRules): Result<TurnCalendar>
 
     /** Starts the group: its rules freeze and the first period opens. */
     suspend fun startGroup(groupId: String): Result<SavingsGroup>
