@@ -13,6 +13,7 @@ import pe.kerolabs.pozzo.features.contributions.presentation.organizer.CycleClos
 import pe.kerolabs.pozzo.features.contributions.presentation.organizer.DeliverScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.organizer.ReviewDetailScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.organizer.ReviewsScreen
+import pe.kerolabs.pozzo.features.contributions.presentation.periods.PastPeriodsScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.pot.PotScreen
 import pe.kerolabs.pozzo.features.contributions.presentation.register.RegisterContributionScreen
 
@@ -44,7 +45,16 @@ data class MyContributionsRoute(val groupId: String)
 data class TurnCalendarRoute(val groupId: String)
 
 @Serializable
-data class CycleClosedRoute(val groupName: String, val totalTurns: Int, val potAmount: String)
+data class PastPeriodsRoute(val groupId: String)
+
+@Serializable
+data class CycleClosedRoute(
+    val groupId: String,
+    val lastPeriodId: String,
+    val groupName: String,
+    val totalTurns: Int,
+    val potAmount: String,
+)
 
 /**
  * The screens of a cycle in progress: the pot, the member's contribution and the organizer's tasks.
@@ -67,6 +77,7 @@ fun NavGraphBuilder.contributionsNavGraph(
             onDeliver = { navController.navigate(DeliverRoute(it)) },
             onGroupDetail = onGroupDetail,
             onCalendar = { navController.navigate(TurnCalendarRoute(it)) },
+            onPastPeriods = { navController.navigate(PastPeriodsRoute(it)) },
         )
     }
 
@@ -80,6 +91,10 @@ fun NavGraphBuilder.contributionsNavGraph(
                 }
             },
         )
+    }
+
+    composable<PastPeriodsRoute> {
+        PastPeriodsScreen(onBack = { navController.popBackStack() })
     }
 
     composable<MyContributionsRoute> {
@@ -117,8 +132,8 @@ fun NavGraphBuilder.contributionsNavGraph(
         DeliverScreen(
             onBack = { navController.popBackStack() },
             onNextPeriod = backToPot,
-            onCycleClosed = { groupName, totalTurns, potAmount ->
-                navController.navigate(CycleClosedRoute(groupName, totalTurns, potAmount)) {
+            onCycleClosed = { groupId, lastPeriodId, groupName, totalTurns, potAmount ->
+                navController.navigate(CycleClosedRoute(groupId, lastPeriodId, groupName, totalTurns, potAmount)) {
                     popUpTo<PotRoute> { inclusive = true }
                 }
             },
@@ -127,6 +142,13 @@ fun NavGraphBuilder.contributionsNavGraph(
 
     composable<CycleClosedRoute> { entry ->
         val route = entry.toRoute<CycleClosedRoute>()
-        CycleClosedScreen(route.groupName, route.totalTurns, route.potAmount, onDone = onHome)
+        CycleClosedScreen(
+            groupName = route.groupName,
+            totalTurns = route.totalTurns,
+            potAmount = route.potAmount,
+            lastPeriodId = route.lastPeriodId,
+            onOpenGroup = { onGroupDetail(route.groupId) },
+            onDone = onHome,
+        )
     }
 }

@@ -40,6 +40,9 @@ data class PeriodStatusDto(
     val membersCount: Int,
     val myStatus: String?,
     val members: List<MemberStatusDto>,
+    val deliveredAt: String? = null,
+    val hasPayoutProof: Boolean = false,
+    val payoutAmount: BigDecimal? = null,
 )
 
 data class MemberStatusDto(
@@ -79,6 +82,8 @@ data class ContributionDto(
 data class ReceiptImageDto(val url: String, val expiresAt: String)
 
 data class ContributionShareLinkDto(val token: String, val url: String)
+
+data class PayoutProofDto(val periodId: String, val hasPayoutProof: Boolean)
 
 data class MyContributionsDto(
     val cycleId: String,
