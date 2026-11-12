@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import pe.kerolabs.pozzo.core.network.ApiException
 import pe.kerolabs.pozzo.core.network.apiCall
+import pe.kerolabs.pozzo.features.savingsgroups.domain.AuctionRules
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Destination
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupPreview
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupRole
@@ -28,12 +29,15 @@ import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.local.GroupDao
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.local.GroupEntity
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.AddManualMemberRequestDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.AgreedTurnsRequestDto
+import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.AuctionTurnsRequestDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.CreateGroupRequestDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.DestinationDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.GroupDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.GroupsService
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.InvitationDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.MemberDto
+import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.OpenNewCycleRequestDto
+import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.ReplaceMemberRequestDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.TurnCalendarDto
 import pe.kerolabs.pozzo.features.savingsgroups.infrastructure.remote.UpdateRulesRequestDto
 
@@ -124,11 +128,31 @@ class SavingsGroupRepositoryImpl @Inject constructor(
     override suspend fun removeMember(groupId: String, membershipId: String): Result<Unit> =
         apiCall { service.removeMember(groupId, membershipId) }.map { }
 
+    override suspend fun registerDropout(groupId: String, membershipId: String): Result<List<Member>> =
+        apiCall { service.registerDropout(groupId, membershipId) }.map { members -> members.map { it.toDomain() } }
+
+    override suspend fun replaceMember(
+        groupId: String,
+        droppedMembershipId: String,
+        displayName: String,
+        phoneNumber: String?,
+    ): Result<List<Member>> =
+        apiCall { service.replaceMember(groupId, droppedMembershipId, ReplaceMemberRequestDto(displayName, phoneNumber)) }
+            .map { members -> members.map { it.toDomain() } }
+
     override suspend fun drawTurns(groupId: String): Result<TurnCalendar> =
         apiCall { service.drawTurns(groupId) }.map { it.toDomain() }
 
     override suspend fun assignAgreedTurns(groupId: String, order: List<String>): Result<TurnCalendar> =
         apiCall { service.assignAgreedTurns(groupId, AgreedTurnsRequestDto(order)) }.map { it.toDomain() }
+
+    override suspend fun assignTurnsByAuction(groupId: String, rules: AuctionRules): Result<TurnCalendar> =
+        apiCall {
+            service.assignTurnsByAuction(
+                groupId,
+                AuctionTurnsRequestDto(rules.closesDaysBeforeCutoff, rules.minimumBid, rules.fallback.name),
+            )
+        }.map { it.toDomain() }
 
     override suspend fun startGroup(groupId: String): Result<SavingsGroup> =
         apiCall { service.startGroup(groupId) }.map { dto -> saveLocally(dto) }
@@ -151,6 +175,10 @@ class SavingsGroupRepositoryImpl @Inject constructor(
 
     override suspend fun deleteGroup(groupId: String): Result<Unit> =
         apiCall { service.deleteGroup(groupId) }.map { dao.deleteById(groupId) }
+
+    override suspend fun openNewCycle(groupId: String, firstContributionDate: LocalDate): Result<SavingsGroup> =
+        apiCall { service.openNewCycle(groupId, OpenNewCycleRequestDto(firstContributionDate.toString())) }
+            .map { dto -> saveLocally(dto) }
 
     /** A group created, joined or read appears in the list right away, without waiting for a refresh. */
     private suspend fun saveLocally(dto: GroupDto): SavingsGroup {

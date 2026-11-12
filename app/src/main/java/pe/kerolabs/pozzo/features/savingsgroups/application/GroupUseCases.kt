@@ -1,8 +1,10 @@
 package pe.kerolabs.pozzo.features.savingsgroups.application
 
+import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import pe.kerolabs.pozzo.features.savingsgroups.domain.AuctionRules
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupDetail
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Invitation
 import pe.kerolabs.pozzo.features.savingsgroups.domain.InvitationCodes
@@ -63,12 +65,25 @@ class RemoveMemberUseCase @Inject constructor(private val repository: SavingsGro
     suspend operator fun invoke(groupId: String, membershipId: String) = repository.removeMember(groupId, membershipId)
 }
 
+class RegisterDropoutUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String, membershipId: String) = repository.registerDropout(groupId, membershipId)
+}
+
+class ReplaceMemberUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String, droppedMembershipId: String, displayName: String, phoneNumber: String?) =
+        repository.replaceMember(groupId, droppedMembershipId, displayName.trim(), phoneNumber?.takeIf { it.isNotBlank() })
+}
+
 class DrawTurnsUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
     suspend operator fun invoke(groupId: String) = repository.drawTurns(groupId)
 }
 
 class AssignAgreedTurnsUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
     suspend operator fun invoke(groupId: String, order: List<String>) = repository.assignAgreedTurns(groupId, order)
+}
+
+class AssignTurnsByAuctionUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String, rules: AuctionRules) = repository.assignTurnsByAuction(groupId, rules)
 }
 
 /** The photo of each member of a group, by membership; an empty map if it cannot be read. */
@@ -98,4 +113,9 @@ class DeleteGroupUseCase @Inject constructor(private val repository: SavingsGrou
 
 class StartGroupUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
     suspend operator fun invoke(groupId: String) = repository.startGroup(groupId)
+}
+
+class OpenNewCycleUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String, firstContributionDate: LocalDate) =
+        repository.openNewCycle(groupId, firstContributionDate)
 }

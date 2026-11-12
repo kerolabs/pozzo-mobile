@@ -38,6 +38,9 @@ interface GroupsService {
     @POST("groups/{groupId}/start")
     suspend fun startGroup(@Path("groupId") groupId: String): Response<GroupDto>
 
+    @POST("groups/{groupId}/new-cycle")
+    suspend fun openNewCycle(@Path("groupId") groupId: String, @Body request: OpenNewCycleRequestDto): Response<GroupDto>
+
     @POST("groups/{groupId}/invitations")
     suspend fun generateInvitation(@Path("groupId") groupId: String): Response<InvitationDto>
 
@@ -65,6 +68,19 @@ interface GroupsService {
         @Path("membershipId") membershipId: String,
     ): Response<Unit>
 
+    @POST("groups/{groupId}/members/{membershipId}/dropout")
+    suspend fun registerDropout(
+        @Path("groupId") groupId: String,
+        @Path("membershipId") membershipId: String,
+    ): Response<List<MemberDto>>
+
+    @POST("groups/{groupId}/members/{membershipId}/replacement")
+    suspend fun replaceMember(
+        @Path("groupId") groupId: String,
+        @Path("membershipId") membershipId: String,
+        @Body request: ReplaceMemberRequestDto,
+    ): Response<List<MemberDto>>
+
     @GET("groups/{groupId}/turns")
     suspend fun getTurns(@Path("groupId") groupId: String): Response<TurnCalendarDto>
 
@@ -75,5 +91,11 @@ interface GroupsService {
     suspend fun assignAgreedTurns(
         @Path("groupId") groupId: String,
         @Body request: AgreedTurnsRequestDto,
+    ): Response<TurnCalendarDto>
+
+    @POST("groups/{groupId}/turns/auction")
+    suspend fun assignTurnsByAuction(
+        @Path("groupId") groupId: String,
+        @Body request: AuctionTurnsRequestDto,
     ): Response<TurnCalendarDto>
 }

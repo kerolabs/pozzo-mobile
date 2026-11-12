@@ -11,9 +11,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import pe.kerolabs.pozzo.core.format.formatSoles
 import pe.kerolabs.pozzo.core.network.userMessage
-import pe.kerolabs.pozzo.features.contributions.application.GetCycleOfGroupUseCase
+import pe.kerolabs.pozzo.features.contributions.application.FindAuctionUseCase
+import pe.kerolabs.pozzo.features.contributions.application.GetCycleHistoryUseCase
 import pe.kerolabs.pozzo.features.contributions.application.GetMyContributionsUseCase
+import pe.kerolabs.pozzo.features.contributions.application.ShareContributionUseCase
+import pe.kerolabs.pozzo.features.contributions.domain.MyPeriodContribution
 import pe.kerolabs.pozzo.features.contributions.domain.Cycle
 import pe.kerolabs.pozzo.features.contributions.domain.MyContributions
 import pe.kerolabs.pozzo.features.contributions.presentation.navigation.MyContributionsRoute
@@ -25,6 +29,10 @@ data class MyContributionsUiState(
     val contributions: MyContributions? = null,
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
+    /** The text to hand to the share sheet, with the verifiable link of a contribution. */
+    val shareText: String? = null,
+    val isSharing: Boolean = false,
+    val shareError: String? = null,
 )
 
 /** G1: the member's contributions in a group and their receipts, also without connection. */
@@ -32,6 +40,7 @@ data class MyContributionsUiState(
 class MyContributionsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getMyContributions: GetMyContributionsUseCase,
+    private val shareContribution: ShareContributionUseCase,
 ) : ViewModel() {
 
     private val groupId = savedStateHandle.toRoute<MyContributionsRoute>().groupId
@@ -51,11 +60,35 @@ class MyContributionsViewModel @Inject constructor(
                 .onFailure { error -> _state.update { it.copy(isLoading = false, errorMessage = error.userMessage()) } }
         }
     }
+
+    /** US28: asks for the verifiable link of a settled contribution and prepares the message to share. */
+    fun share(period: MyPeriodContribution) {
+        val contribution = period.contribution ?: return
+        if (_state.value.isSharing) return
+        val groupName = _state.value.contributions?.groupName.orEmpty()
+        viewModelScope.launch {
+            _state.update { it.copy(isSharing = true, shareError = null) }
+            shareContribution(contribution.id)
+                .onSuccess { url ->
+                    val text = "Mi aporte de ${formatSoles(contribution.amount)} a $groupName, período ${period.turnNumber}, " +
+                        "quedó registrado en Pozzo. Puedes verificarlo aquí: $url"
+                    _state.update { it.copy(isSharing = false, shareText = text) }
+                }
+                .onFailure { error -> _state.update { it.copy(isSharing = false, shareError = error.userMessage()) } }
+        }
+    }
+
+    fun onShared() = _state.update { it.copy(shareText = null) }
 }
 
 data class TurnCalendarUiState(
     val cycle: Cycle? = null,
     val calendar: TurnCalendar? = null,
+    /**
+     * Who collected each turn already decided, by turn number. In a group whose turns are auctioned the calendar
+     * of the group keeps a provisional order, so the winners come from the periods of the cycle.
+     */
+    val winners: Map<Int, String> = emptyMap(),
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
 )
@@ -64,8 +97,9 @@ data class TurnCalendarUiState(
 @HiltViewModel
 class TurnCalendarViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val getCycleOfGroup: GetCycleOfGroupUseCase,
+    private val getCycleHistory: GetCycleHistoryUseCase,
     private val getTurns: GetTurnsUseCase,
+    private val findAuction: FindAuctionUseCase,
 ) : ViewModel() {
 
     private val groupId = savedStateHandle.toRoute<TurnCalendarRoute>().groupId
@@ -73,16 +107,24 @@ class TurnCalendarViewModel @Inject constructor(
     private val _state = MutableStateFlow(TurnCalendarUiState())
     val state: StateFlow<TurnCalendarUiState> = _state.asStateFlow()
 
-    init {
-        load()
-    }
-
+    /** Called every time the screen comes back, so a swap of turns shows up right away. */
     fun load() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null) }
-            val result = getCycleOfGroup(groupId).mapCatching { cycle -> cycle to getTurns(groupId).getOrThrow() }
+            _state.update { it.copy(isLoading = it.calendar == null, errorMessage = null) }
+            val result = getCycleHistory(groupId).mapCatching { (cycle, periods) ->
+                val calendar = getTurns(groupId).getOrThrow()
+                // The turn in progress has a winner only once its auction closed.
+                val current = periods.firstOrNull { it.turnNumber == cycle.currentTurn }
+                val currentDecided = current == null || findAuction(current.id)?.isOpen != true
+                val winners = periods
+                    .filter { it.turnNumber < cycle.currentTurn || !cycle.isActive || currentDecided }
+                    .associate { it.turnNumber to it.payoutMemberName }
+                Triple(cycle, calendar, winners)
+            }
             result
-                .onSuccess { (cycle, calendar) -> _state.update { it.copy(cycle = cycle, calendar = calendar, isLoading = false) } }
+                .onSuccess { (cycle, calendar, winners) ->
+                    _state.update { it.copy(cycle = cycle, calendar = calendar, winners = winners, isLoading = false) }
+                }
                 .onFailure { error -> _state.update { it.copy(isLoading = false, errorMessage = error.userMessage()) } }
         }
     }

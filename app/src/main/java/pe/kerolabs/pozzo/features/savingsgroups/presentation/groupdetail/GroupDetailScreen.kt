@@ -18,15 +18,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PersonAddAlt
+import androidx.compose.material.icons.outlined.PersonOff
 import androidx.compose.material.icons.outlined.PersonRemove
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,13 +41,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,7 +70,11 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import pe.kerolabs.pozzo.core.designsystem.components.InitialsAvatar
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoOutlinedButton
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoPrimaryButton
@@ -79,6 +91,7 @@ import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupStatus
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Invitation
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Member
 import pe.kerolabs.pozzo.features.savingsgroups.domain.MembershipKind
+import pe.kerolabs.pozzo.features.savingsgroups.domain.Turn
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.ChecklistItem
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.MemberProfileSheet
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.ReadinessChecklist
@@ -92,6 +105,9 @@ import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.turnMethodLa
 /** How often the group is read again while it waits to start, so members who join show up on their own. */
 private const val LIVE_REFRESH_MILLIS = 15_000L
 
+/** How long the removal of a member can be undone. */
+private const val UNDO_REMOVAL_MILLIS = 5_000L
+
 /**
  * E1 for the organizer and E9 for a participant: the group with its members, turns and rules, and
  * what is still missing to start it. E2, adding a member without the application, opens as a sheet.
@@ -104,9 +120,11 @@ fun GroupDetailScreen(
     onAssignTurns: (groupId: String, seats: Int) -> Unit,
     onStartGroup: (groupId: String) -> Unit,
     onOpenPot: (groupId: String) -> Unit,
+    onPastPeriods: (groupId: String) -> Unit,
     onEditGroup: (groupId: String) -> Unit,
     onClosed: () -> Unit,
     onShowInvitation: (groupName: String, invitation: Invitation) -> Unit,
+    onOpenGroup: (groupId: String) -> Unit,
     viewModel: GroupDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -119,10 +137,33 @@ fun GroupDetailScreen(
         onPauseOrDispose { }
     }
     LaunchedEffect(state.closed) { if (state.closed) onClosed() }
+    LaunchedEffect(state.newCycleGroupId) {
+        state.newCycleGroupId?.let {
+            viewModel.onNewCycleOpened()
+            onOpenGroup(it)
+        }
+    }
     LaunchedEffect(state.message) {
         state.message?.let {
             snackbar.showSnackbar(it)
             viewModel.onMessageShown()
+        }
+    }
+    // US15: five seconds to undo the removal of a member before it is sent.
+    LaunchedEffect(state.pendingRemoval) {
+        val member = state.pendingRemoval ?: return@LaunchedEffect
+        val result = withTimeoutOrNull(UNDO_REMOVAL_MILLIS) {
+            snackbar.showSnackbar(
+                "${member.displayName} ya no es parte de la junta.",
+                actionLabel = "Deshacer",
+                duration = SnackbarDuration.Indefinite,
+            )
+        }
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.undoRemove()
+        } else {
+            snackbar.currentSnackbarData?.dismiss()
+            viewModel.confirmRemove()
         }
     }
     LaunchedEffect(state.invitation) {
@@ -223,6 +264,17 @@ fun GroupDetailScreen(
                 Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     PozzoPrimaryButton(text = "Ver el pozo", onClick = { onOpenPot(viewModel.groupId) })
                 }
+            } else if (detail != null && detail.group.status == GroupStatus.CLOSED) {
+                // A closed group has no pot to open, but its periods stay readable for every member (US32).
+                Column(
+                    Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    PozzoOutlinedButton(text = "Ver los períodos del ciclo", onClick = { onPastPeriods(viewModel.groupId) })
+                    if (detail.group.isOrganizer) {
+                        PozzoPrimaryButton(text = "Abrir un nuevo ciclo", onClick = viewModel::askNewCycle)
+                    }
+                }
             } else if (canEdit && detail != null) {
                 MainAction(
                     detail = detail,
@@ -252,7 +304,9 @@ fun GroupDetailScreen(
                 onSelectTab = viewModel::selectTab,
                 onOpenMember = { membershipId -> profileOf = membershipId },
                 onChangeTurns = { onAssignTurns(viewModel.groupId, detail.group.seats) },
+                onReplace = viewModel::openReplace,
                 canEdit = canEdit,
+                hiddenMember = state.pendingRemoval?.membershipId,
                 contentPadding = padding,
             )
         }
@@ -270,7 +324,47 @@ fun GroupDetailScreen(
                     icon = Icons.Outlined.PersonRemove,
                 )
             }
+            // Once the group started a member is not removed: their leaving is recorded as a dropout.
+            if (group?.isOrganizer == true && group.status == GroupStatus.STARTED && !member.isOrganizer) {
+                PozzoOutlinedButton(
+                    text = "Registrar deserción",
+                    onClick = {
+                        profileOf = null
+                        viewModel.askDropout(member)
+                    },
+                    icon = Icons.Outlined.PersonOff,
+                )
+            }
         }
+    }
+
+    state.confirmingDropout?.let { member ->
+        DropoutDialog(
+            memberName = member.displayName,
+            saving = state.isRegisteringDropout,
+            onConfirm = viewModel::confirmDropout,
+            onDismiss = viewModel::dismissDropout,
+        )
+    }
+
+    state.replace?.let { form ->
+        ReplaceMemberSheet(
+            form = form,
+            onNameChange = viewModel::onReplaceName,
+            onPhoneChange = viewModel::onReplacePhone,
+            onSave = viewModel::saveReplacement,
+            onDismiss = viewModel::closeReplace,
+        )
+    }
+
+    state.newCycleDate?.let { date ->
+        NewCycleDialog(
+            date = date,
+            opening = state.isOpeningNewCycle,
+            onDateChange = viewModel::onNewCycleDate,
+            onConfirm = viewModel::confirmNewCycle,
+            onDismiss = viewModel::dismissNewCycle,
+        )
     }
 
     if (state.confirmingDelete && group != null) {
@@ -300,10 +394,13 @@ private fun DetailContent(
     onSelectTab: (GroupDetailTab) -> Unit,
     onOpenMember: (membershipId: String) -> Unit,
     onChangeTurns: () -> Unit,
+    onReplace: (Turn) -> Unit,
     canEdit: Boolean,
+    hiddenMember: String?,
     contentPadding: PaddingValues,
 ) {
     val group = detail.group
+    val activeIds = detail.members.map { it.membershipId }.toSet()
     val colors = MaterialTheme.colorScheme
     val status = PozzoThemeExtras.statusColors
     LazyColumn(
@@ -368,7 +465,7 @@ private fun DetailContent(
             Spacer(Modifier.height(8.dp))
         }
         when (tab) {
-            GroupDetailTab.MEMBERS -> items(detail.members, key = { it.membershipId }) { member ->
+            GroupDetailTab.MEMBERS -> items(detail.members.filter { it.membershipId != hiddenMember }, key = { it.membershipId }) { member ->
                 MemberRow(member = member, onOpen = { onOpenMember(member.membershipId) })
             }
             GroupDetailTab.TURNS -> {
@@ -383,12 +480,23 @@ private fun DetailContent(
                     }
                 } else {
                     items(detail.turns.turns, key = { it.turnNumber }) { turn ->
+                        // A turn whose member is no longer active belongs to someone who dropped out.
+                        val dropped = group.isStarted && turn.membershipId !in activeIds
                         TurnRow(
                             turnNumber = turn.turnNumber,
                             name = if (turn.isMe) "${turn.displayName} (tú)" else turn.displayName,
                             cutoffDate = turn.cutoffDate,
                             highlighted = turn.isMe,
-                            modifier = Modifier.clickable { onOpenMember(turn.membershipId) },
+                            subtitle = if (dropped) "Dejó la junta · falta un reemplazo" else null,
+                            trailing = {
+                                if (dropped) StatusChip("Desertó", colors.errorContainer, colors.onErrorContainer)
+                            },
+                            modifier = Modifier.clickable {
+                                when {
+                                    dropped && group.isOrganizer && group.status == GroupStatus.STARTED -> onReplace(turn)
+                                    !dropped -> onOpenMember(turn.membershipId)
+                                }
+                            },
                         )
                     }
                     if (canEdit) {
@@ -471,6 +579,55 @@ private fun MemberRow(member: Member, onOpen: () -> Unit) {
     }
 }
 
+/** US39: the date of the first contribution of the next cycle, which can only be today or later. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NewCycleDialog(
+    date: LocalDate,
+    opening: Boolean,
+    onDateChange: (LocalDate) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var picking by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = { if (!opening) onDismiss() },
+        icon = { Icon(Icons.Outlined.Autorenew, contentDescription = null) },
+        title = { Text("Abrir un nuevo ciclo") },
+        text = {
+            Column {
+                Text(
+                    "Se crea una junta nueva con las mismas reglas, destino e integrantes, por iniciar. Podrás ajustarla, " +
+                        "asignar los turnos e iniciarla como siempre.",
+                )
+                Spacer(Modifier.height(16.dp))
+                PozzoOutlinedButton(text = "Primer aporte: ${formatMediumDate(date)}", onClick = { picking = true })
+            }
+        },
+        confirmButton = { TextButton(onClick = onConfirm, enabled = !opening) { Text("Abrir ciclo") } },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !opening) { Text("Cancelar") } },
+    )
+    if (picking) {
+        val today = LocalDate.now().atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        val picker = rememberDatePickerState(
+            initialSelectedDateMillis = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis >= today
+            },
+        )
+        DatePickerDialog(
+            onDismissRequest = { picking = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    picker.selectedDateMillis?.let { onDateChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
+                    picking = false
+                }) { Text("Aceptar") }
+            },
+            dismissButton = { TextButton(onClick = { picking = false }) { Text("Cancelar") } },
+        ) { DatePicker(state = picker) }
+    }
+}
+
 @Composable
 private fun DeleteGroupDialog(groupName: String, deleting: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
@@ -490,6 +647,70 @@ private fun DeleteGroupDialog(groupName: String, deleting: Boolean, onConfirm: (
         },
         dismissButton = { TextButton(onClick = onDismiss, enabled = !deleting) { Text("Cancelar") } },
     )
+}
+
+@Composable
+private fun DropoutDialog(memberName: String, saving: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        icon = { Icon(Icons.Outlined.PersonOff, contentDescription = null) },
+        title = { Text("¿$memberName dejó la junta?") },
+        text = {
+            Text(
+                "Queda en su historial de cumplimiento y deja de recibir recordatorios. Su turno queda libre para " +
+                    "que asignes a alguien en su lugar.",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = !saving) { Text("Registrar deserción", color = MaterialTheme.colorScheme.error) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancelar") } },
+    )
+}
+
+/** US38: who takes the turn of the member who dropped out, with or without the application. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReplaceMemberSheet(
+    form: ReplaceForm,
+    onNameChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
+            Text("Reemplazo en el turno ${form.turnNumber}", style = MaterialTheme.typography.headlineSmall)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Toma el lugar de ${form.droppedName} y debe lo que quedó pendiente del período en curso. Si su celular " +
+                    "ya usa Pozzo, se une con su cuenta; si no, tú registras sus aportes.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(20.dp))
+            PozzoTextField(
+                label = "Nombre",
+                value = form.name,
+                onValueChange = onNameChange,
+                placeholder = "Rosa Medina",
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+            )
+            Spacer(Modifier.height(16.dp))
+            PozzoTextField(
+                label = "Celular (opcional)",
+                value = form.phone,
+                onValueChange = onPhoneChange,
+                prefix = "+51",
+                placeholder = "999 000 000",
+                errorText = form.errorMessage,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            )
+            Spacer(Modifier.height(24.dp))
+            PozzoPrimaryButton(text = "Asignar reemplazo", onClick = onSave, enabled = form.canSave, loading = form.isSaving)
+            PozzoTextButton(text = "Cancelar", onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally))
+        }
+    }
 }
 
 @Composable

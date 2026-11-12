@@ -18,8 +18,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.FactCheck
+import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Upload
@@ -50,8 +52,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.kerolabs.pozzo.core.designsystem.components.InitialsAvatar
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoOutlinedButton
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoPrimaryButton
+import pe.kerolabs.pozzo.core.format.formatMediumDate
 import pe.kerolabs.pozzo.core.format.formatShortDate
 import pe.kerolabs.pozzo.core.format.formatSoles
+import pe.kerolabs.pozzo.features.contributions.domain.Auction
 import pe.kerolabs.pozzo.features.contributions.domain.ContributionState
 import pe.kerolabs.pozzo.features.contributions.domain.Cycle
 import pe.kerolabs.pozzo.features.contributions.domain.MemberContribution
@@ -78,6 +82,8 @@ import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.rememberMemb
  * @param onDeliver Callback allowing the organizer to mark the pot as delivered to the turn recipient.
  * @param onGroupDetail Callback to navigate to general group settings and member rosters.
  * @param onCalendar Callback to inspect the rotation turns calendar.
+ * @param onAuction Callback to open the auction of the turn, in groups whose turns are auctioned.
+ * @param onPastPeriods Callback to see the periods already closed, with who collected and the transfer of the pot.
  * @param viewModel ViewModel managing cycle data, member payment statuses, and pot progression.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,6 +97,8 @@ fun PotScreen(
     onDeliver: (groupId: String) -> Unit,
     onGroupDetail: (groupId: String) -> Unit,
     onCalendar: (groupId: String) -> Unit,
+    onAuction: (groupId: String) -> Unit,
+    onPastPeriods: (groupId: String) -> Unit,
     viewModel: PotViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -131,6 +139,10 @@ fun PotScreen(
                             DropdownMenuItem(text = { Text("Detalle de la junta") }, onClick = {
                                 menuOpen = false
                                 onGroupDetail(groupId)
+                            })
+                            DropdownMenuItem(text = { Text("Períodos anteriores") }, onClick = {
+                                menuOpen = false
+                                onPastPeriods(groupId)
                             })
                             if (cycle?.isOrganizer == true && period?.state == PeriodState.OPEN) {
                                 DropdownMenuItem(text = { Text("Registrar aporte en efectivo") }, onClick = {
@@ -175,7 +187,11 @@ fun PotScreen(
             modifier = Modifier.fillMaxSize(),
         ) {
             item {
-                PotCard(period)
+                PotCard(period, auctionOpen = state.auction?.isOpen == true)
+                state.auction?.let { auction ->
+                    Spacer(Modifier.height(12.dp))
+                    AuctionEntry(auction = auction, onOpen = { onAuction(groupId) })
+                }
                 Spacer(Modifier.height(20.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Estado de los aportes", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
@@ -199,7 +215,7 @@ fun PotScreen(
                             if (member.isMe) "${member.displayName} (tú)" else member.displayName,
                             style = MaterialTheme.typography.titleMedium,
                         )
-                        if (member.collects) {
+                        if (member.collects && state.auction?.isOpen != true) {
                             Text("Cobra en este período", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -231,7 +247,7 @@ fun PotScreen(
  * @param period The current active [Period] domain model containing financial and schedule data.
  */
 @Composable
-private fun PotCard(period: Period) {
+private fun PotCard(period: Period, auctionOpen: Boolean) {
     val onBrand = MaterialTheme.colorScheme.onPrimaryContainer
     Column(
         Modifier
@@ -240,7 +256,8 @@ private fun PotCard(period: Period) {
             .padding(20.dp),
     ) {
         Text(
-            "Período ${period.turnNumber} de ${period.totalTurns} · Cobra ${period.payoutMemberName}",
+            if (auctionOpen) "Período ${period.turnNumber} de ${period.totalTurns} · Cobra quien gane la subasta"
+            else "Período ${period.turnNumber} de ${period.totalTurns} · Cobra ${period.payoutMemberName}",
             style = MaterialTheme.typography.titleSmall,
             color = onBrand,
         )
@@ -296,16 +313,51 @@ private fun PotActions(cycle: Cycle, period: Period, onContribute: () -> Unit, o
         Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (deliver) PozzoPrimaryButton(text = "Entregar el pozo a ${period.payoutMemberName.substringBefore(' ')}", onClick = onDeliver)
+        if (deliver) {
+            PozzoPrimaryButton(
+                text = "Entregar ${formatSoles(period.payoutAmount)} a ${period.payoutMemberName.substringBefore(' ')}",
+                onClick = onDeliver,
+            )
+        }
         if (reviews) {
             PozzoOutlinedButton(text = "Revisar aportes (${period.inReviewCount})", onClick = onReviews, icon = Icons.Outlined.FactCheck)
         }
         if (canContribute) {
             PozzoPrimaryButton(
-                text = "Registrar mi aporte de ${formatSoles(period.contributionAmount)}",
+                text = "Registrar mi aporte de ${formatSoles(period.myAmount)}",
                 onClick = onContribute,
                 icon = Icons.Outlined.Upload,
             )
         }
+    }
+}
+
+/**
+ * The auction of the turn, under the pot of a group whose turns are auctioned: while it is open, who offers
+ * the most so far; once closed, who won.
+ */
+@Composable
+private fun AuctionEntry(auction: Auction, onOpen: () -> Unit) {
+    val highest = auction.highestBid
+    val detail = when {
+        !auction.isOpen && auction.winnerName != null -> "Cerrada · cobra ${auction.winnerName}"
+        highest != null -> "Mayor oferta ${formatSoles(highest.amount)} · cierra el ${formatMediumDate(auction.closesOn)}"
+        else -> "Sin ofertas · cierra el ${formatMediumDate(auction.closesOn)}"
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.large)
+            .clickable(onClick = onOpen)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.Gavel, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Subasta del turno", style = MaterialTheme.typography.titleMedium)
+            Text(detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Ver la subasta")
     }
 }

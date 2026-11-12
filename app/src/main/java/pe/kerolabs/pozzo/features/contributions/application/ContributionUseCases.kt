@@ -28,6 +28,11 @@ class GetReceiptImageUseCase @Inject constructor(private val repository: Contrib
     suspend operator fun invoke(contributionId: String) = repository.getReceiptImageUrl(contributionId)
 }
 
+/** US28: the public link of a settled contribution, which anyone can open without signing in. */
+class ShareContributionUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(contributionId: String) = repository.shareContribution(contributionId)
+}
+
 /**
  * The cycle of a group and its period in progress, which together are the state of the pot.
  */
@@ -93,4 +98,22 @@ class ReviewContributionUseCase @Inject constructor(private val repository: Cont
 
 class DeliverPotUseCase @Inject constructor(private val repository: ContributionRepository) {
     suspend operator fun invoke(periodId: String) = repository.deliverPot(periodId)
+}
+
+class SwapTurnsUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(cycleId: String, firstMembershipId: String, secondMembershipId: String) =
+        repository.swapTurns(cycleId, firstMembershipId, secondMembershipId)
+}
+
+/** US36: keeps the image of the transfer of a delivered pot, made lighter on the phone before it is uploaded. */
+class AttachPayoutProofUseCase @Inject constructor(
+    private val repository: ContributionRepository,
+    private val reader: ReceiptImageReader,
+) {
+    suspend operator fun invoke(periodId: String, imageUri: Uri): Result<Unit> =
+        runCatching { reader.read(imageUri) }.mapCatching { jpeg -> repository.attachPayoutProof(periodId, jpeg).getOrThrow() }
+}
+
+class GetPayoutProofUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(periodId: String) = repository.getPayoutProofUrl(periodId)
 }

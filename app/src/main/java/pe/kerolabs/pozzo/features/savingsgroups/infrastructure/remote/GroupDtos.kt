@@ -30,6 +30,8 @@ data class RulesDto(
 
 data class DestinationDto(val method: String, val phoneNumber: String)
 
+data class OpenNewCycleRequestDto(val firstContributionDate: String)
+
 data class UpdateRulesRequestDto(
     val name: String,
     val contributionAmount: BigDecimal,
@@ -62,6 +64,8 @@ data class MemberDto(
 
 data class AddManualMemberRequestDto(val displayName: String, val phoneNumber: String?)
 
+data class ReplaceMemberRequestDto(val displayName: String, val phoneNumber: String?)
+
 data class TurnCalendarDto(
     val method: String?,
     val drawSeed: String?,
@@ -80,6 +84,8 @@ data class TurnDto(
 )
 
 data class AgreedTurnsRequestDto(val order: List<String>)
+
+data class AuctionTurnsRequestDto(val closesDaysBeforeCutoff: Int, val minimumBid: BigDecimal, val fallback: String)
 
 data class InvitationDto(val code: String, val link: String, val expiresAt: String)
 

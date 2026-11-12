@@ -29,12 +29,14 @@ import pe.kerolabs.pozzo.features.contributions.infrastructure.local.MyContribut
 import pe.kerolabs.pozzo.features.contributions.infrastructure.local.MyContributionsEntity
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ContributionDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ContributionsService
+import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.CycleDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.MyContributionsDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.PeriodStatusDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ReceiptDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.RegisterCashRequestDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.RegisterCoverageRequestDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ReviewRequestDto
+import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.SwapTurnsRequestDto
 
 class ContributionRepositoryImpl @Inject constructor(
     private val service: ContributionsService,
@@ -44,24 +46,27 @@ class ContributionRepositoryImpl @Inject constructor(
     private val gson = Gson()
 
     override suspend fun getCycleOfGroup(groupId: String): Result<Cycle> =
-        apiCall { service.getCycleOfGroup(groupId) }.map { dto ->
-            Cycle(
-                id = dto.id,
-                groupId = dto.groupId,
-                groupName = dto.groupName,
-                isActive = dto.status == "ACTIVE",
-                currentTurn = dto.currentTurn,
-                totalTurns = dto.totalTurns,
-                contributionAmount = dto.contributionAmount,
-                potAmount = dto.potAmount,
-                destinationMethod = dto.destinationMethod,
-                destinationPhone = dto.destinationPhoneNumber,
-                payeeName = dto.payeeName,
-                isOrganizer = dto.role == "ORGANIZER",
-                myMembershipId = dto.myMembershipId,
-                myTurnNumber = dto.myTurnNumber,
-            )
-        }
+        apiCall { service.getCycleOfGroup(groupId) }.map { it.toDomain() }
+
+    override suspend fun swapTurns(cycleId: String, firstMembershipId: String, secondMembershipId: String): Result<Cycle> =
+        apiCall { service.swapTurns(cycleId, SwapTurnsRequestDto(firstMembershipId, secondMembershipId)) }.map { it.toDomain() }
+
+    private fun CycleDto.toDomain() = Cycle(
+        id = id,
+        groupId = groupId,
+        groupName = groupName,
+        isActive = status == "ACTIVE",
+        currentTurn = currentTurn,
+        totalTurns = totalTurns,
+        contributionAmount = contributionAmount,
+        potAmount = potAmount,
+        destinationMethod = destinationMethod,
+        destinationPhone = destinationPhoneNumber,
+        payeeName = payeeName,
+        isOrganizer = role == "ORGANIZER",
+        myMembershipId = myMembershipId,
+        myTurnNumber = myTurnNumber,
+    )
 
     override suspend fun getCurrentPeriod(cycleId: String): Result<Period> =
         apiCall { service.getCurrentPeriod(cycleId) }.map { it.toDomain() }
@@ -111,6 +116,9 @@ class ContributionRepositoryImpl @Inject constructor(
     override suspend fun getReceiptImageUrl(contributionId: String): Result<String> =
         apiCall { service.getReceiptImage(contributionId) }.map { it.url }
 
+    override suspend fun shareContribution(contributionId: String): Result<String> =
+        apiCall { service.shareContribution(contributionId) }.map { it.url }
+
     override suspend fun registerCash(
         periodId: String,
         membershipId: String,
@@ -132,8 +140,16 @@ class ContributionRepositoryImpl @Inject constructor(
 
     override suspend fun deliverPot(periodId: String): Result<PotDelivery> =
         apiCall { service.deliverPot(periodId) }.map {
-            PotDelivery(it.deliveredTurn, it.deliveredAmount, it.cycleStatus == "CLOSED", it.nextTurn)
+            PotDelivery(it.deliveredPeriodId, it.deliveredTurn, it.deliveredAmount, it.cycleStatus == "CLOSED", it.nextTurn)
         }
+
+    override suspend fun attachPayoutProof(periodId: String, jpeg: ByteArray): Result<Unit> {
+        val part = MultipartBody.Part.createFormData("image", "transfer.jpg", jpeg.toRequestBody("image/jpeg".toMediaType()))
+        return apiCall { service.attachPayoutProof(periodId, part) }.map { }
+    }
+
+    override suspend fun getPayoutProofUrl(periodId: String): Result<String> =
+        apiCall { service.getPayoutProof(periodId) }.map { it.url }
 
     private fun PeriodStatusDto.toDomain() = Period(
         id = periodId,
@@ -161,8 +177,12 @@ class ContributionRepositoryImpl @Inject constructor(
                 it.collects,
                 ContributionState.valueOf(it.status),
                 it.contributionId,
+                it.amount,
             )
         },
+        payoutAmount = payoutAmount ?: potAmount,
+        deliveredAt = deliveredAt?.let(Instant::parse),
+        hasPayoutProof = hasPayoutProof,
     )
 
     private fun MyContributionsDto.toDomain(savedAt: Instant, isOffline: Boolean) = MyContributions(

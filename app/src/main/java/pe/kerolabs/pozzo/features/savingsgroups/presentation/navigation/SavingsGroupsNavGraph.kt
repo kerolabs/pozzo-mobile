@@ -16,6 +16,7 @@ import pe.kerolabs.pozzo.features.savingsgroups.presentation.joingroup.JoinedScr
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.mygroups.MyGroupsScreen
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.turns.AgreedOrderScreen
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.turns.AssignTurnsScreen
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.turns.AuctionRulesScreen
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.turns.DrawResultScreen
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.turns.StartGroupScreen
 
@@ -74,12 +75,16 @@ data class AgreedOrderRoute(val groupId: String)
 @Serializable
 data class StartGroupRoute(val groupId: String)
 
+@Serializable
+data class AuctionRulesRoute(val groupId: String)
+
 /**
  * The groups of the member: the list, creating and joining a group, its detail, its turns and its start.
  */
 fun NavGraphBuilder.savingsGroupsNavGraph(
     navController: NavController,
     onOpenPot: (groupId: String) -> Unit,
+    onPastPeriods: (groupId: String) -> Unit,
     onOpenProfile: () -> Unit,
 ) {
 
@@ -166,8 +171,10 @@ fun NavGraphBuilder.savingsGroupsNavGraph(
                 onAssignTurns = { groupId, seats -> navController.navigate(AssignTurnsRoute(groupId, seats)) },
                 onStartGroup = { groupId -> navController.navigate(StartGroupRoute(groupId)) },
                 onOpenPot = onOpenPot,
+                onPastPeriods = onPastPeriods,
                 onEditGroup = { groupId -> navController.navigate(EditGroupRoute(groupId)) },
                 onClosed = { navController.popBackStack<MyGroupsRoute>(inclusive = false) },
+                onOpenGroup = { groupId -> navController.navigate(GroupDetailRoute(groupId)) { popUpTo<MyGroupsRoute>() } },
                 onShowInvitation = { groupName, invitation ->
                     val groupId = it.toRoute<GroupDetailRoute>().groupId
                     navController.navigate(InvitationRoute(groupId, groupName, invitation.code, invitation.link, fromDetail = true))
@@ -182,6 +189,7 @@ fun NavGraphBuilder.savingsGroupsNavGraph(
                 onBack = { navController.popBackStack() },
                 onDraw = { navController.navigate(DrawResultRoute(route.groupId)) },
                 onAgreedOrder = { navController.navigate(AgreedOrderRoute(route.groupId)) },
+                onAuction = { navController.navigate(AuctionRulesRoute(route.groupId)) },
             )
         }
 
@@ -191,6 +199,10 @@ fun NavGraphBuilder.savingsGroupsNavGraph(
 
         composable<AgreedOrderRoute> {
             AgreedOrderScreen(onBack = { navController.popBackStack() }, onSaved = backToDetail)
+        }
+
+        composable<AuctionRulesRoute> {
+            AuctionRulesScreen(onBack = { navController.popBackStack() }, onSaved = backToDetail)
         }
 
         composable<StartGroupRoute> {

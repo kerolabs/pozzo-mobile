@@ -53,6 +53,9 @@ interface ContributionsService {
     @GET("contributions/{contributionId}/receipt-image")
     suspend fun getReceiptImage(@Path("contributionId") contributionId: String): Response<ReceiptImageDto>
 
+    @POST("contributions/{contributionId}/share")
+    suspend fun shareContribution(@Path("contributionId") contributionId: String): Response<ContributionShareLinkDto>
+
     @GET("periods/{periodId}/contributions/pending-review")
     suspend fun getPendingReviews(@Path("periodId") periodId: String): Response<List<ContributionDto>>
 
@@ -61,4 +64,17 @@ interface ContributionsService {
 
     @POST("periods/{periodId}/payout")
     suspend fun deliverPot(@Path("periodId") periodId: String): Response<PotDeliveryDto>
+
+    @POST("cycles/{cycleId}/turns/swap")
+    suspend fun swapTurns(@Path("cycleId") cycleId: String, @Body request: SwapTurnsRequestDto): Response<CycleDto>
+
+    @Multipart
+    @PUT("periods/{periodId}/payout/proof")
+    suspend fun attachPayoutProof(
+        @Path("periodId") periodId: String,
+        @Part image: MultipartBody.Part,
+    ): Response<PayoutProofDto>
+
+    @GET("periods/{periodId}/payout/proof")
+    suspend fun getPayoutProof(@Path("periodId") periodId: String): Response<ReceiptImageDto>
 }

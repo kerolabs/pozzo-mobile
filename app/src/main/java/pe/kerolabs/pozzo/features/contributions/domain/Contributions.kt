@@ -41,6 +41,8 @@ data class MemberContribution(
     val collects: Boolean,
     val state: ContributionState,
     val contributionId: String?,
+    /** What the member owes in the period: the contribution, less the credit of an auction. */
+    val amount: BigDecimal? = null,
 )
 
 /**
@@ -65,11 +67,26 @@ data class Period(
     val membersCount: Int,
     val myState: ContributionState?,
     val members: List<MemberContribution>,
+    /** What the member who collects receives: the pot, less the discount of an auction. */
+    val payoutAmount: BigDecimal = potAmount,
+    val deliveredAt: Instant? = null,
+    /** Whether the organizer attached the image of the transfer of the pot. */
+    val hasPayoutProof: Boolean = false,
 ) {
+    /** The discount the member who collects offered in the auction of the turn, if any. */
+    val auctionDiscount: BigDecimal get() = potAmount - payoutAmount
+
     val progress: Float
         get() = if (potAmount.signum() == 0) 0f else collectedAmount.toFloat() / potAmount.toFloat()
     val inReviewCount: Int get() = members.count { it.state == ContributionState.IN_REVIEW }
     val unsettled: List<MemberContribution> get() = members.filter { !it.state.isSettled && it.state != ContributionState.IN_REVIEW }
+
+    /** What a member owes in this period; the contribution of the group when the backend does not say. */
+    fun amountOwedBy(membershipId: String): BigDecimal =
+        members.firstOrNull { it.membershipId == membershipId }?.amount ?: contributionAmount
+
+    /** What the requester owes in this period. */
+    val myAmount: BigDecimal get() = members.firstOrNull { it.isMe }?.amount ?: contributionAmount
 }
 
 enum class ReceiptSource { YAPE, PLIN, BANK }
@@ -111,7 +128,13 @@ data class Contribution(
 /**
  * What the delivery of a pot left: the next period, or the end of the cycle.
  */
-data class PotDelivery(val deliveredTurn: Int, val deliveredAmount: BigDecimal, val cycleClosed: Boolean, val nextTurn: Int?)
+data class PotDelivery(
+    val deliveredPeriodId: String,
+    val deliveredTurn: Int,
+    val deliveredAmount: BigDecimal,
+    val cycleClosed: Boolean,
+    val nextTurn: Int?,
+)
 
 enum class ReviewDecision { APPROVE, REJECT }
 
@@ -148,6 +171,18 @@ interface ContributionRepository {
     suspend fun review(contributionId: String, decision: ReviewDecision, note: String?): Result<Contribution>
 
     suspend fun deliverPot(periodId: String): Result<PotDelivery>
+
+    /** Swaps the turns of two members whose periods have not started; only the organizer can. */
+    suspend fun swapTurns(cycleId: String, firstMembershipId: String, secondMembershipId: String): Result<Cycle>
+
+    /** Keeps the image of the transfer with which a delivered pot was paid, as a JPEG. */
+    suspend fun attachPayoutProof(periodId: String, jpeg: ByteArray): Result<Unit>
+
+    /** A link to the image of the transfer of a pot that works for a few minutes. */
+    suspend fun getPayoutProofUrl(periodId: String): Result<String>
+
+    /** The public link that proves a settled contribution, the same every time it is asked for. */
+    suspend fun shareContribution(contributionId: String): Result<String>
 }
 
 /**
