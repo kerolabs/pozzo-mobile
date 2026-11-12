@@ -181,7 +181,7 @@ fun PotScreen(
             modifier = Modifier.fillMaxSize(),
         ) {
             item {
-                PotCard(period)
+                PotCard(period, auctionOpen = state.auction?.isOpen == true)
                 state.auction?.let { auction ->
                     Spacer(Modifier.height(12.dp))
                     AuctionEntry(auction = auction, onOpen = { onAuction(groupId) })
@@ -209,7 +209,7 @@ fun PotScreen(
                             if (member.isMe) "${member.displayName} (tú)" else member.displayName,
                             style = MaterialTheme.typography.titleMedium,
                         )
-                        if (member.collects) {
+                        if (member.collects && state.auction?.isOpen != true) {
                             Text("Cobra en este período", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -241,7 +241,7 @@ fun PotScreen(
  * @param period The current active [Period] domain model containing financial and schedule data.
  */
 @Composable
-private fun PotCard(period: Period) {
+private fun PotCard(period: Period, auctionOpen: Boolean) {
     val onBrand = MaterialTheme.colorScheme.onPrimaryContainer
     Column(
         Modifier
@@ -250,7 +250,8 @@ private fun PotCard(period: Period) {
             .padding(20.dp),
     ) {
         Text(
-            "Período ${period.turnNumber} de ${period.totalTurns} · Cobra ${period.payoutMemberName}",
+            if (auctionOpen) "Período ${period.turnNumber} de ${period.totalTurns} · Cobra quien gane la subasta"
+            else "Período ${period.turnNumber} de ${period.totalTurns} · Cobra ${period.payoutMemberName}",
             style = MaterialTheme.typography.titleSmall,
             color = onBrand,
         )
@@ -312,7 +313,7 @@ private fun PotActions(cycle: Cycle, period: Period, onContribute: () -> Unit, o
         }
         if (canContribute) {
             PozzoPrimaryButton(
-                text = "Registrar mi aporte de ${formatSoles(period.contributionAmount)}",
+                text = "Registrar mi aporte de ${formatSoles(period.myAmount)}",
                 onClick = onContribute,
                 icon = Icons.Outlined.Upload,
             )

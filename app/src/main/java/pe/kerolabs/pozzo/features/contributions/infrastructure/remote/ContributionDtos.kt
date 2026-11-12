@@ -49,6 +49,7 @@ data class MemberStatusDto(
     val collects: Boolean,
     val status: String,
     val contributionId: String?,
+    val amount: BigDecimal? = null,
 )
 
 data class ReceiptDto(
