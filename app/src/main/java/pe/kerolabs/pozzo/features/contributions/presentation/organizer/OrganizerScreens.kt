@@ -485,7 +485,8 @@ fun CycleClosedScreen(
     ResultLayout(
         icon = Icons.Outlined.Celebration,
         title = "¡Ciclo completado!",
-        message = "Los $totalTurns integrantes de $groupName recibieron su pozo de ${formatSoles(potAmount.toBigDecimal())}. " +
+        // Not "received S/ X": after an auction the winners received the pot less their discount.
+        message = "Los $totalTurns integrantes de $groupName ya cobraron su turno del pozo de ${formatSoles(potAmount.toBigDecimal())}. " +
             "El historial de cumplimiento de cada uno ya está actualizado. Si quieren seguir, abre un nuevo ciclo desde la junta.",
         action = "Volver a mis juntas",
         onAction = onDone,
