@@ -84,6 +84,7 @@ data class AuctionRulesRoute(val groupId: String)
 fun NavGraphBuilder.savingsGroupsNavGraph(
     navController: NavController,
     onOpenPot: (groupId: String) -> Unit,
+    onPastPeriods: (groupId: String) -> Unit,
     onOpenProfile: () -> Unit,
 ) {
 
@@ -170,8 +171,10 @@ fun NavGraphBuilder.savingsGroupsNavGraph(
                 onAssignTurns = { groupId, seats -> navController.navigate(AssignTurnsRoute(groupId, seats)) },
                 onStartGroup = { groupId -> navController.navigate(StartGroupRoute(groupId)) },
                 onOpenPot = onOpenPot,
+                onPastPeriods = onPastPeriods,
                 onEditGroup = { groupId -> navController.navigate(EditGroupRoute(groupId)) },
                 onClosed = { navController.popBackStack<MyGroupsRoute>(inclusive = false) },
+                onOpenGroup = { groupId -> navController.navigate(GroupDetailRoute(groupId)) { popUpTo<MyGroupsRoute>() } },
                 onShowInvitation = { groupName, invitation ->
                     val groupId = it.toRoute<GroupDetailRoute>().groupId
                     navController.navigate(InvitationRoute(groupId, groupName, invitation.code, invitation.link, fromDetail = true))

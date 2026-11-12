@@ -175,6 +175,12 @@ interface SavingsGroupRepository {
 
     /** Deletes a group that has not started, with its members and invitation. */
     suspend fun deleteGroup(groupId: String): Result<Unit>
+
+    /**
+     * Opens the next cycle of a closed group: a new group, still to start, with the same name, rules,
+     * destination and members, whose first contribution is on [firstContributionDate].
+     */
+    suspend fun openNewCycle(groupId: String, firstContributionDate: LocalDate): Result<SavingsGroup>
 }
 
 /**

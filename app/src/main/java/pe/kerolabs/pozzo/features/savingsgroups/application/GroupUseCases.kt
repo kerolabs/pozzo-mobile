@@ -1,5 +1,6 @@
 package pe.kerolabs.pozzo.features.savingsgroups.application
 
+import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -112,4 +113,9 @@ class DeleteGroupUseCase @Inject constructor(private val repository: SavingsGrou
 
 class StartGroupUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
     suspend operator fun invoke(groupId: String) = repository.startGroup(groupId)
+}
+
+class OpenNewCycleUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String, firstContributionDate: LocalDate) =
+        repository.openNewCycle(groupId, firstContributionDate)
 }
