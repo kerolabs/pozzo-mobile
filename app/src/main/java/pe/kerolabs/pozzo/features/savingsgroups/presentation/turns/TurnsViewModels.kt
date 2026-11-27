@@ -9,17 +9,22 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kerolabs.pozzo.core.network.userMessage
+import pe.kerolabs.pozzo.features.savingsgroups.application.ActivatePaidPlanUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.AssignAgreedTurnsUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.DrawTurnsUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.GetGroupDetailUseCase
+import pe.kerolabs.pozzo.features.savingsgroups.application.ObserveMyGroupsUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.StartGroupUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupDetail
+import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupPlan
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Member
 import pe.kerolabs.pozzo.features.savingsgroups.domain.TurnCalendar
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.AgreedOrderRoute
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.AssignTurnsRoute
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.DrawResultRoute
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.StartGroupRoute
 
@@ -151,4 +156,45 @@ class StartGroupViewModel @Inject constructor(
                 .onFailure { error -> _state.update { it.copy(isStarting = false, errorMessage = error.userMessage()) } }
         }
     }
+}
+
+data class AssignTurnsUiState(
+    val plan: GroupPlan? = null,
+    val isActivating: Boolean = false,
+    val activated: Boolean = false,
+    val errorMessage: String? = null,
+)
+
+/** E3: knows the plan of the group, because the auction of the turns is part of the paid plan. */
+@HiltViewModel
+class AssignTurnsViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val observeMyGroups: ObserveMyGroupsUseCase,
+    private val activatePaidPlan: ActivatePaidPlanUseCase,
+) : ViewModel() {
+
+    private val groupId = savedStateHandle.toRoute<AssignTurnsRoute>().groupId
+
+    private val _state = MutableStateFlow(AssignTurnsUiState())
+    val state: StateFlow<AssignTurnsUiState> = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val plan = observeMyGroups().first().firstOrNull { it.id == groupId }?.plan
+            _state.update { it.copy(plan = plan) }
+        }
+    }
+
+    /** Moves the group to the paid plan, as a demonstration without a real charge. */
+    fun activate() {
+        if (_state.value.isActivating) return
+        viewModelScope.launch {
+            _state.update { it.copy(isActivating = true, errorMessage = null) }
+            activatePaidPlan(groupId)
+                .onSuccess { group -> _state.update { it.copy(isActivating = false, plan = group.plan, activated = true) } }
+                .onFailure { error -> _state.update { it.copy(isActivating = false, errorMessage = error.userMessage()) } }
+        }
+    }
+
+    fun onActivatedHandled() = _state.update { it.copy(activated = false) }
 }

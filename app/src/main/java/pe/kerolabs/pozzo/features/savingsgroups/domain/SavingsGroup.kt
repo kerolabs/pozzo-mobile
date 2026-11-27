@@ -6,6 +6,23 @@ import kotlinx.coroutines.flow.Flow
 
 enum class GroupStatus { DRAFT, READY, STARTED, CLOSED }
 
+/**
+ * Plan of a group. The free plan covers one active group per organizer, of up to six members, with the turns
+ * drawn or agreed; the paid plan, a fixed fee per group, lifts those limits and enables the auction. Nothing is
+ * charged yet: the paid plan is activated as a demonstration of the business model.
+ */
+enum class GroupPlan {
+    FREE,
+    PAID;
+
+    companion object {
+        const val FREE_MAX_SEATS = 6
+
+        /** Fee of the paid plan for one group, within the S/ 10 to 20 of the business model. */
+        val PAID_PRICE: BigDecimal = BigDecimal("15")
+    }
+}
+
 enum class GroupRole { ORGANIZER, PARTICIPANT }
 
 enum class Periodicity { WEEKLY, BIWEEKLY, MONTHLY }
@@ -42,12 +59,15 @@ data class SavingsGroup(
     val id: String,
     val name: String,
     val status: GroupStatus,
+    val plan: GroupPlan,
     val role: GroupRole,
     val organizerName: String,
     val contributionAmount: BigDecimal,
     val currency: String,
     val periodicity: Periodicity,
     val seats: Int,
+    /** Active members; the seats still free are [seats] minus these. */
+    val membersCount: Int,
     val potAmount: BigDecimal,
     val firstContributionDate: LocalDate,
     val destination: Destination?,
@@ -58,6 +78,9 @@ data class SavingsGroup(
 ) {
     val isOrganizer: Boolean get() = role == GroupRole.ORGANIZER
     val isStarted: Boolean get() = status == GroupStatus.STARTED || status == GroupStatus.CLOSED
+
+    /** A group the member organizes on the free plan, still active: the only one the free plan allows. */
+    val usesFreePlanSlot: Boolean get() = isOrganizer && plan == GroupPlan.FREE && status != GroupStatus.CLOSED
 }
 
 enum class MembershipKind { APP, MANUAL }
@@ -181,6 +204,9 @@ interface SavingsGroupRepository {
      * destination and members, whose first contribution is on [firstContributionDate].
      */
     suspend fun openNewCycle(groupId: String, firstContributionDate: LocalDate): Result<SavingsGroup>
+
+    /** Moves a group that has not started to the paid plan, as a demonstration without a real charge. */
+    suspend fun activatePaidPlan(groupId: String): Result<SavingsGroup>
 }
 
 /**

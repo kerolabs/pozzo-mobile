@@ -43,6 +43,8 @@ data class MemberContribution(
     val contributionId: String?,
     /** What the member owes in the period: the contribution, less the credit of an auction. */
     val amount: BigDecimal? = null,
+    /** Since when the contribution waits for the organizer's review. */
+    val reviewSince: Instant? = null,
 )
 
 /**
@@ -101,13 +103,21 @@ data class ReceiptData(
     val amount: BigDecimal,
     val paidAt: LocalDate,
     val source: ReceiptSource,
+    /** What the application read from the receipt; the backend sends to review any field changed afterwards. */
+    val readByApp: ReadByApp? = null,
 )
+
+/** The data of a receipt exactly as the application read it, before the member could change it. */
+data class ReadByApp(val operationNumber: String, val payeeName: String, val amount: BigDecimal, val paidAt: LocalDate)
 
 enum class ContributionMethod { TRANSFER, CASH, COVERAGE }
 
 enum class ContributionStatus { VALIDATED, INCONSISTENT, APPROVED, REJECTED }
 
-/** A field of the receipt that did not match: AMOUNT, PAYEE or DATE. */
+/**
+ * A field of the receipt that did not match (AMOUNT, PAYEE or DATE), or one the member changed after the application
+ * read it (EDITED_AMOUNT, EDITED_PAYEE, EDITED_DATE or EDITED_OPERATION, with the read value as expected).
+ */
 data class Inconsistency(val field: String, val expected: String, val found: String)
 
 data class Contribution(
@@ -169,6 +179,12 @@ interface ContributionRepository {
     suspend fun getPendingReviews(periodId: String): Result<List<Contribution>>
 
     suspend fun review(contributionId: String, decision: ReviewDecision, note: String?): Result<Contribution>
+
+    /** The approved or rejected contributions of a period that the organizer can still review again. */
+    suspend fun getReviewed(periodId: String): Result<List<Contribution>>
+
+    /** Takes back an approval or a rejection: the contribution waits for review again. */
+    suspend fun reopenReview(contributionId: String): Result<Contribution>
 
     suspend fun deliverPot(periodId: String): Result<PotDelivery>
 

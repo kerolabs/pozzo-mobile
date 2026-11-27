@@ -59,6 +59,12 @@ interface ContributionsService {
     @GET("periods/{periodId}/contributions/pending-review")
     suspend fun getPendingReviews(@Path("periodId") periodId: String): Response<List<ContributionDto>>
 
+    @GET("periods/{periodId}/contributions/reviewed")
+    suspend fun getReviewed(@Path("periodId") periodId: String): Response<List<ContributionDto>>
+
+    @POST("contributions/{contributionId}/review/reopen")
+    suspend fun reopenReview(@Path("contributionId") contributionId: String): Response<ContributionDto>
+
     @PATCH("contributions/{contributionId}/review")
     suspend fun review(@Path("contributionId") contributionId: String, @Body request: ReviewRequestDto): Response<ContributionDto>
 

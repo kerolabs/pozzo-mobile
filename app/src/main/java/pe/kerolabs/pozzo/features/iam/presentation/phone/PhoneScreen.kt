@@ -68,7 +68,7 @@ fun PhoneScreen(
                 onValueChange = viewModel::onPhoneChange,
                 prefix = "+51",
                 placeholder = "999 000 123",
-                supportingText = "Solo usamos tu número para verificar tu identidad.",
+                supportingText = "Los 9 dígitos de tu celular, empezando por 9. Solo lo usamos para verificar tu identidad.",
                 errorText = state.errorMessage,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Done),
             )

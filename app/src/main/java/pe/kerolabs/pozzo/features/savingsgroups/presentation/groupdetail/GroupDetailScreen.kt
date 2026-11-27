@@ -87,6 +87,7 @@ import pe.kerolabs.pozzo.core.designsystem.theme.PozzoThemeExtras
 import pe.kerolabs.pozzo.core.format.formatMediumDate
 import pe.kerolabs.pozzo.core.format.formatSoles
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupDetail
+import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupPlan
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupStatus
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Invitation
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Member
@@ -441,6 +442,12 @@ private fun DetailContent(
                             if (group.readiness.turnsAssigned) turnMethodLabel(group.turnMethod)
                             else "Falta elegir cómo se reparte el orden",
                         ),
+                        ChecklistItem(
+                            group.readiness.destinationDefined,
+                            "Destino de los aportes",
+                            group.destination?.let { "${paymentMethodLabel(it.method)} · ${it.phoneNumber.chunked(3).joinToString(" ")}" }
+                                ?: "Falta definir a dónde se envían los aportes",
+                        ),
                     ),
                 )
                 Spacer(Modifier.height(16.dp))
@@ -546,6 +553,7 @@ private fun DetailContent(
                             "Destino" to "${paymentMethodLabel(it.method)} · ${it.phoneNumber.chunked(3).joinToString(" ")}"
                         },
                         "Turnos" to turnMethodLabel(group.turnMethod),
+                        "Plan" to if (group.plan == GroupPlan.PAID) "De pago" else "Gratuito",
                     ),
                 )
             }

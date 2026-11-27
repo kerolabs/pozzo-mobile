@@ -63,11 +63,14 @@ import pe.kerolabs.pozzo.core.format.formatLongDate
 import pe.kerolabs.pozzo.core.format.formatMediumDate
 import pe.kerolabs.pozzo.core.format.formatSoles
 import pe.kerolabs.pozzo.features.iam.domain.PhoneNumbers
+import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupPlan
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Invitation
 import pe.kerolabs.pozzo.features.savingsgroups.domain.NewGroup
 import pe.kerolabs.pozzo.features.savingsgroups.domain.PaymentMethod
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Periodicity
 import pe.kerolabs.pozzo.features.savingsgroups.domain.SavingsGroup
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.PlanChoice
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.planTitle
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.cutoffLabel
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.paymentMethodLabel
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.periodicityTitle
@@ -140,7 +143,7 @@ fun CreateGroupScreen(
                 when (state.step) {
                     CreateGroupStep.RULES -> RulesStep(state, viewModel)
                     CreateGroupStep.DATES -> DatesStep(state, viewModel)
-                    CreateGroupStep.SUMMARY -> SummaryStep(state)
+                    CreateGroupStep.SUMMARY -> SummaryStep(state, viewModel::onPlanChange)
                 }
                 state.errorMessage?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
@@ -153,7 +156,12 @@ fun CreateGroupScreen(
                 CreateGroupStep.DATES ->
                     PozzoPrimaryButton(text = "Continuar", onClick = viewModel::next, enabled = state.datesValid)
                 CreateGroupStep.SUMMARY -> PozzoPrimaryButton(
-                    text = if (state.isEditing) "Guardar cambios" else "Crear junta",
+                    text = when {
+                        state.isEditing && state.activatesPaidPlan -> "Activar plan y guardar"
+                        state.isEditing -> "Guardar cambios"
+                        state.activatesPaidPlan -> "Activar plan y crear junta"
+                        else -> "Crear junta"
+                    },
                     onClick = viewModel::submit,
                     loading = state.isLoading,
                 )
@@ -209,7 +217,8 @@ private fun RulesStep(state: CreateGroupUiState, viewModel: CreateGroupViewModel
                 if (state.minSeats > NewGroup.MIN_SEATS) {
                     "No puede ser menos que los ${state.minSeats} integrantes que ya tiene la junta."
                 } else {
-                    "Entre ${NewGroup.MIN_SEATS} y ${NewGroup.MAX_SEATS} integrantes."
+                    "Entre ${NewGroup.MIN_SEATS} y ${NewGroup.MAX_SEATS} integrantes. " +
+                        "El plan gratuito llega hasta ${GroupPlan.FREE_MAX_SEATS}."
                 },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -299,7 +308,7 @@ private fun DatesStep(state: CreateGroupUiState, viewModel: CreateGroupViewModel
 }
 
 @Composable
-private fun SummaryStep(state: CreateGroupUiState) {
+private fun SummaryStep(state: CreateGroupUiState, onPlanChange: (GroupPlan) -> Unit) {
     val amount = state.contributionAmount ?: return
     SummaryCard(
         rows = listOf(
@@ -326,6 +335,22 @@ private fun SummaryStep(state: CreateGroupUiState) {
             style = MaterialTheme.typography.bodyLarge,
             color = onBrand,
         )
+    }
+    Column {
+        FieldLabel("Plan")
+        Spacer(Modifier.height(8.dp))
+        if (state.groupPlan == GroupPlan.PAID) {
+            Text(
+                "${planTitle(GroupPlan.PAID)}, ya activo.",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        } else {
+            PlanChoice(
+                selected = state.effectivePlan,
+                freeUnavailableReason = state.freePlanUnavailableReason,
+                onSelect = onPlanChange,
+            )
+        }
     }
     if (state.clearsTurns) {
         Text(
