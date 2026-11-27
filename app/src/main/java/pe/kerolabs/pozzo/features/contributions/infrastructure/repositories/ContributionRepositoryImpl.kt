@@ -32,6 +32,7 @@ import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.Contributi
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.CycleDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.MyContributionsDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.PeriodStatusDto
+import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ReadByAppDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.ReceiptDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.RegisterCashRequestDto
 import pe.kerolabs.pozzo.features.contributions.infrastructure.remote.RegisterCoverageRequestDto
@@ -104,6 +105,9 @@ class ContributionRepositoryImpl @Inject constructor(
                     amount = receipt.amount,
                     paidAt = receipt.paidAt.toString(),
                     source = receipt.source.name,
+                    readByApp = receipt.readByApp?.let {
+                        ReadByAppDto(it.operationNumber, it.payeeName, it.amount, it.paidAt.toString())
+                    },
                 ),
             )
         }.map { it.toDomain() }
@@ -137,6 +141,12 @@ class ContributionRepositoryImpl @Inject constructor(
 
     override suspend fun review(contributionId: String, decision: ReviewDecision, note: String?): Result<Contribution> =
         apiCall { service.review(contributionId, ReviewRequestDto(decision.name, note)) }.map { it.toDomain() }
+
+    override suspend fun getReviewed(periodId: String): Result<List<Contribution>> =
+        apiCall { service.getReviewed(periodId) }.map { list -> list.map { it.toDomain() } }
+
+    override suspend fun reopenReview(contributionId: String): Result<Contribution> =
+        apiCall { service.reopenReview(contributionId) }.map { it.toDomain() }
 
     override suspend fun deliverPot(periodId: String): Result<PotDelivery> =
         apiCall { service.deliverPot(periodId) }.map {

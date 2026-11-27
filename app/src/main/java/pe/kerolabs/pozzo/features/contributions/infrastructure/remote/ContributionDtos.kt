@@ -62,7 +62,10 @@ data class ReceiptDto(
     val amount: BigDecimal,
     val paidAt: String,
     val source: String,
+    val readByApp: ReadByAppDto? = null,
 )
+
+data class ReadByAppDto(val operationNumber: String, val payeeName: String, val amount: BigDecimal, val paidAt: String)
 
 data class InconsistencyDto(val field: String, val expected: String, val found: String)
 

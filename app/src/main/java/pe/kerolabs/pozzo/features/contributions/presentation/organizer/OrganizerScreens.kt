@@ -28,6 +28,8 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -61,6 +63,7 @@ import pe.kerolabs.pozzo.core.format.formatMediumDate
 import pe.kerolabs.pozzo.core.format.formatSoles
 import pe.kerolabs.pozzo.features.contributions.domain.ContributionState
 import pe.kerolabs.pozzo.features.contributions.domain.ReviewDecision
+import pe.kerolabs.pozzo.features.contributions.domain.ContributionStatus
 import pe.kerolabs.pozzo.features.contributions.presentation.common.DateField
 import pe.kerolabs.pozzo.features.contributions.presentation.common.LoadingOrError
 import pe.kerolabs.pozzo.features.contributions.presentation.common.MemberOption
@@ -121,6 +124,33 @@ fun ReviewsScreen(
         if (state.reviews.isEmpty()) {
             InfoBanner("No hay aportes por revisar en el período ${period.turnNumber}.", Icons.Outlined.TaskAlt)
         }
+        state.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+        if (state.reviewed.isNotEmpty()) {
+            Text("Ya revisados", style = MaterialTheme.typography.titleMedium)
+            state.reviewed.forEach { contribution ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.large)
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(contribution.memberName, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "${formatSoles(contribution.amount)} · " +
+                                if (contribution.status == ContributionStatus.APPROVED) "aprobado" else "rechazado",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton(
+                        onClick = { viewModel.reopen(contribution.id) },
+                        enabled = state.reopening == null,
+                    ) { Text(if (state.reopening == contribution.id) "Volviendo…" else "Volver a revisar") }
+                }
+            }
+        }
         state.reviews.forEach { contribution ->
             Row(
                 Modifier
@@ -158,6 +188,7 @@ fun ReviewDetailScreen(
     val photos = rememberMemberPhotos(state.cycle?.groupId)
     var note by rememberSaveable { mutableStateOf("") }
     var seeingImage by remember { mutableStateOf(false) }
+    var confirmingApproval by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { viewModel.load() }
     LaunchedEffect(state.decided) { if (state.decided != null) onDecided(state.reviews.size <= 1) }
 
@@ -168,6 +199,7 @@ fun ReviewDetailScreen(
         actions = {
             if (contribution != null) {
                 state.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+                // Both decisions weigh the same: the receipt did not match, so approving is not the default.
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PozzoOutlinedButton(
                         text = "Rechazar",
@@ -175,10 +207,10 @@ fun ReviewDetailScreen(
                         enabled = !state.isSaving,
                         modifier = Modifier.weight(1f),
                     )
-                    PozzoPrimaryButton(
-                        text = "Aprobar igual",
-                        onClick = { viewModel.decide(ReviewDecision.APPROVE, note) },
-                        loading = state.isSaving,
+                    PozzoOutlinedButton(
+                        text = "Aprobar",
+                        onClick = { confirmingApproval = true },
+                        enabled = !state.isSaving,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -234,6 +266,11 @@ fun ReviewDetailScreen(
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             CheckRow(title = "N.º de operación", detail = "${receipt?.operationNumber.orEmpty()} · no está repetido", ok = true)
+            // What the member changed after Pozzo read the receipt.
+            contribution.inconsistencies.filter { it.field.startsWith("EDITED_") }.forEach { edit ->
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                CheckRow(title = inconsistencyLabel(edit.field), detail = "Pozzo leyó ${edit.expected} · escribió ${edit.found}", ok = false)
+            }
         }
         if (contribution.hasReceiptImage) {
             PozzoOutlinedButton(text = "Ver comprobante", onClick = { seeingImage = true }, icon = Icons.Outlined.Image)
@@ -246,9 +283,30 @@ fun ReviewDetailScreen(
             singleLine = false,
         )
         InfoBanner(
-            "Si lo apruebas, cuenta como aporte validado. Si lo rechazas, ${contribution.memberName.substringBefore(' ')} deberá registrarlo de nuevo.",
+            "Si lo apruebas, cuenta como aporte validado. Si lo rechazas, ${contribution.memberName.substringBefore(' ')} " +
+                "deberá registrarlo de nuevo. Mientras no entregues el pozo, puedes volver a revisarlo.",
             Icons.Outlined.Info,
         )
+        if (confirmingApproval) {
+            AlertDialog(
+                onDismissRequest = { confirmingApproval = false },
+                title = { Text("¿Aprobar este aporte?") },
+                text = {
+                    Text(
+                        "No coincide en: " +
+                            contribution.inconsistencies.joinToString(", ") { inconsistencyLabel(it.field).lowercase() } +
+                            ". Contará como pagado por ${contribution.memberName.substringBefore(' ')}.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmingApproval = false
+                        viewModel.decide(ReviewDecision.APPROVE, note)
+                    }) { Text("Aprobar") }
+                },
+                dismissButton = { TextButton(onClick = { confirmingApproval = false }) { Text("Cancelar") } },
+            )
+        }
     }
 }
 

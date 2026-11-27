@@ -96,6 +96,14 @@ class ReviewContributionUseCase @Inject constructor(private val repository: Cont
         repository.review(contributionId, decision, note?.takeIf { it.isNotBlank() })
 }
 
+class GetReviewedContributionsUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(periodId: String) = repository.getReviewed(periodId)
+}
+
+class ReopenReviewUseCase @Inject constructor(private val repository: ContributionRepository) {
+    suspend operator fun invoke(contributionId: String) = repository.reopenReview(contributionId)
+}
+
 class DeliverPotUseCase @Inject constructor(private val repository: ContributionRepository) {
     suspend operator fun invoke(periodId: String) = repository.deliverPot(periodId)
 }

@@ -23,6 +23,7 @@ import pe.kerolabs.pozzo.features.contributions.application.RegisterContribution
 import pe.kerolabs.pozzo.features.contributions.domain.Contribution
 import pe.kerolabs.pozzo.features.contributions.domain.Cycle
 import pe.kerolabs.pozzo.features.contributions.domain.Period
+import pe.kerolabs.pozzo.features.contributions.domain.ReadByApp
 import pe.kerolabs.pozzo.features.contributions.domain.ReceiptData
 import pe.kerolabs.pozzo.features.contributions.domain.ReceiptSource
 import pe.kerolabs.pozzo.features.contributions.presentation.navigation.RegisterContributionRoute
@@ -56,7 +57,14 @@ data class RegisterUiState(
     val imageUri: Uri? = null,
     /** The contribution was registered but its image could not be kept. */
     val imageNotKept: Boolean = false,
+    /** Every field as the application read it from the image; null when it could not read them all. */
+    val readByApp: ReadByApp? = null,
+    /** The member chose to correct what the application read; the organizer will review the contribution. */
+    val correcting: Boolean = false,
 ) {
+    /** What was read stays as read until the member chooses to correct it. */
+    val showsReadData: Boolean get() = readByApp != null && !correcting
+
     /** Whether the confirmed data match what is expected, shown before registering as a hint. */
     val matchesExpected: Boolean
         get() {
@@ -124,8 +132,17 @@ class RegisterContributionViewModel @Inject constructor(
             _state.update { it.copy(isReading = true, errorMessage = null, imageUri = uri) }
             val read = readReceipt(uri).getOrNull()
             val expected = _state.value.cycle
+            val complete = if (read?.amount != null && read.paidAt != null && !read.payeeName.isNullOrBlank() &&
+                !read.operationNumber.isNullOrBlank()
+            ) {
+                ReadByApp(read.operationNumber, read.payeeName, read.amount, read.paidAt)
+            } else {
+                null
+            }
             _state.update {
                 it.copy(
+                    readByApp = complete,
+                    correcting = false,
                     isReading = false,
                     step = RegisterStep.REVIEW,
                     form = ReceiptForm(
@@ -143,8 +160,17 @@ class RegisterContributionViewModel @Inject constructor(
     }
 
     fun enterManually() = _state.update {
-        it.copy(step = RegisterStep.REVIEW, form = ReceiptForm(payeeName = it.cycle?.payeeName.orEmpty()), imageUri = null)
+        it.copy(
+            step = RegisterStep.REVIEW,
+            form = ReceiptForm(payeeName = it.cycle?.payeeName.orEmpty()),
+            imageUri = null,
+            readByApp = null,
+            correcting = false,
+        )
     }
+
+    /** Lets the member change what the application read; the contribution will wait for the organizer. */
+    fun correct() = _state.update { it.copy(correcting = true) }
 
     fun onAmountChange(value: String) =
         _state.update { it.copy(form = it.form.copy(amount = value.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(10))) }
@@ -174,6 +200,7 @@ class RegisterContributionViewModel @Inject constructor(
                     amount = amount,
                     paidAt = current.form.paidAt,
                     source = current.form.source,
+                    readByApp = current.readByApp,
                 ),
             )
                 .onSuccess { contribution ->
