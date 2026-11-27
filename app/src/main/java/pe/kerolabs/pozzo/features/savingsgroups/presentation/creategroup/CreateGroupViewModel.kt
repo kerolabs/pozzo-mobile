@@ -150,7 +150,8 @@ class CreateGroupViewModel @Inject constructor(
     // The Yape or Plin number of the profile is offered as the destination; the organizer can change it.
     private fun offerWalletNumber() {
         viewModelScope.launch {
-            getProfile().getOrNull()?.walletNumber?.let { number ->
+            val profile = getProfile().getOrNull()
+            (profile?.walletNumber ?: profile?.phoneNumber?.filter(Char::isDigit)?.takeLast(9))?.let { number ->
                 _state.update { if (it.destinationPhone.isEmpty()) it.copy(destinationPhone = number) else it }
             }
         }

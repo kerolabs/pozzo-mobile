@@ -272,7 +272,11 @@ private fun cardSummary(group: SavingsGroup): String = when (group.status) {
         else "${group.seats} integrantes."
     }
     else -> when {
-        !group.readiness.groupFull -> "${group.seats} cupos. Faltan integrantes para iniciar."
+        !group.readiness.groupFull -> {
+            val missing = group.seats - group.membersCount
+            "${group.membersCount} de ${group.seats} integrantes. " +
+                if (missing == 1) "Falta 1 para iniciar." else "Faltan $missing para iniciar."
+        }
         !group.readiness.turnsAssigned -> "Grupo completo. Falta definir los turnos para iniciar."
         !group.readiness.destinationDefined -> "Falta definir a dónde se envían los aportes."
         else -> "Todo listo para iniciar."

@@ -43,6 +43,8 @@ data class MemberContribution(
     val contributionId: String?,
     /** What the member owes in the period: the contribution, less the credit of an auction. */
     val amount: BigDecimal? = null,
+    /** Since when the contribution waits for the organizer's review. */
+    val reviewSince: Instant? = null,
 )
 
 /**

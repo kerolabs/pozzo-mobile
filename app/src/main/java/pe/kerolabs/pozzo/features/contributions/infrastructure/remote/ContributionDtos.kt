@@ -53,6 +53,7 @@ data class MemberStatusDto(
     val status: String,
     val contributionId: String?,
     val amount: BigDecimal? = null,
+    val reviewSince: String? = null,
 )
 
 data class ReceiptDto(

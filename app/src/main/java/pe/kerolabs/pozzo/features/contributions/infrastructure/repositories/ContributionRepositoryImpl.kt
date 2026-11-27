@@ -187,8 +187,7 @@ class ContributionRepositoryImpl @Inject constructor(
                 it.collects,
                 ContributionState.valueOf(it.status),
                 it.contributionId,
-                it.amount,
-            )
+                it.amount, reviewSince = it.reviewSince?.let(Instant::parse))
         },
         payoutAmount = payoutAmount ?: potAmount,
         deliveredAt = deliveredAt?.let(Instant::parse),

@@ -19,6 +19,7 @@ data class GroupEntity(
     val currency: String,
     val periodicity: String,
     val seats: Int,
+    @ColumnInfo(name = "members_count") val membersCount: Int,
     @ColumnInfo(name = "pot_amount") val potAmount: String,
     @ColumnInfo(name = "first_contribution_date") val firstContributionDate: String,
     @ColumnInfo(name = "destination_method") val destinationMethod: String?,

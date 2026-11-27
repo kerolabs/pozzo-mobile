@@ -49,6 +49,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import pe.kerolabs.pozzo.core.designsystem.components.PozzoOutlinedButton
 import pe.kerolabs.pozzo.core.designsystem.components.StatusChip
 import pe.kerolabs.pozzo.core.designsystem.theme.PozzoThemeExtras
 import pe.kerolabs.pozzo.core.format.formatShortDate
@@ -185,14 +186,34 @@ private fun StoppedCard(stopped: StoppedReminders, showGroupName: Boolean) {
     }
 }
 
+/** The action a notice asks for, or null when it only informs. */
+private fun noticeAction(notice: Notice): String? = when {
+    notice.deepLink == null -> null
+    notice.deepLink.endsWith("/reviews") -> "Revisar comprobante"
+    notice.kind == NotificationKind.REMINDER -> "Registrar aporte"
+    notice.title.contains("rechaz", ignoreCase = true) -> "Volver a registrar"
+    else -> null
+}
+
 @Composable
 private fun NoticeRow(notice: Notice, unseen: Boolean, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val status = PozzoThemeExtras.statusColors
     val (icon, container, content) = noticeIcon(notice, colors.errorContainer, colors.onErrorContainer)
+    val action = noticeAction(notice)
+    // A notice that asks for something stands out from the ones that only inform, with its own button.
     Row(
         Modifier
             .fillMaxWidth()
+            .then(
+                if (action != null) {
+                    Modifier
+                        .background(colors.secondaryContainer.copy(alpha = 0.45f), MaterialTheme.shapes.large)
+                        .padding(horizontal = 12.dp)
+                } else {
+                    Modifier
+                },
+            )
             .then(if (notice.deepLink != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.Top,
@@ -212,6 +233,10 @@ private fun NoticeRow(notice: Notice, unseen: Boolean, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant,
             )
+            action?.let {
+                Spacer(Modifier.height(8.dp))
+                PozzoOutlinedButton(text = it, onClick = onClick)
+            }
         }
         if (unseen) {
             Spacer(Modifier.width(8.dp))

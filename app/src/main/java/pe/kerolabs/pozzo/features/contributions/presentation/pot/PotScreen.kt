@@ -225,6 +225,17 @@ fun PotScreen(
                         if (member.collects && state.auction?.isOpen != true) {
                             Text("Cobra en este período", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                        // Who has to act on a contribution under review, and since when it waits.
+                        if (member.state == ContributionState.IN_REVIEW) {
+                            val since = member.reviewSince?.let {
+                                " desde el " + formatShortDate(it.atZone(java.time.ZoneId.systemDefault()).toLocalDate())
+                            }.orEmpty()
+                            Text(
+                                (if (cycle.isOrganizer) "Te toca revisarlo" else "Lo revisa la cabeza de junta") + since,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     ContributionStateChip(member.state, isMine = member.isMe)
                 }

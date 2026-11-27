@@ -442,6 +442,12 @@ private fun DetailContent(
                             if (group.readiness.turnsAssigned) turnMethodLabel(group.turnMethod)
                             else "Falta elegir cómo se reparte el orden",
                         ),
+                        ChecklistItem(
+                            group.readiness.destinationDefined,
+                            "Destino de los aportes",
+                            group.destination?.let { "${paymentMethodLabel(it.method)} · ${it.phoneNumber.chunked(3).joinToString(" ")}" }
+                                ?: "Falta definir a dónde se envían los aportes",
+                        ),
                     ),
                 )
                 Spacer(Modifier.height(16.dp))
