@@ -198,7 +198,8 @@ private fun Header(firstName: String, displayName: String, photoUrl: String?, on
  * Card item representing an individual savings group in the list.
  *
  * Displays the group name, role badge (organizer vs participant), lifecycle state,
- * contribution quota, pot total per turn, and upcoming payout turn details.
+ * contribution quota, pot total per turn, and upcoming payout turn details. The groups the member
+ * organizes are filled with the brand's dark orange; the ones they take part in stay light.
  *
  * @param group The savings group data model to display.
  * @param onClick Callback executed when the member taps the card.
@@ -207,26 +208,29 @@ private fun Header(firstName: String, displayName: String, photoUrl: String?, on
 private fun GroupCard(group: SavingsGroup, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val status = PozzoThemeExtras.statusColors
+    val container = if (group.isOrganizer) colors.primaryContainer else colors.surfaceContainerLow
+    val content = if (group.isOrganizer) colors.onPrimaryContainer else colors.onSurface
+    val secondary = if (group.isOrganizer) colors.onPrimaryContainer.copy(alpha = 0.85f) else colors.onSurfaceVariant
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.extraLarge)
-            .background(colors.surfaceContainerLow)
-            .border(1.dp, colors.outlineVariant, MaterialTheme.shapes.extraLarge)
+            .background(container)
+            .border(1.dp, if (group.isOrganizer) container else colors.outlineVariant, MaterialTheme.shapes.extraLarge)
             .clickable(onClick = onClick)
             .padding(20.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(group.name, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+            Text(group.name, style = MaterialTheme.typography.headlineSmall, color = content, modifier = Modifier.weight(1f))
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = content)
         }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (group.isOrganizer) {
                 StatusChip(
                     "Cabeza de junta",
-                    container = colors.secondaryContainer,
-                    content = colors.onSecondaryContainer,
+                    container = colors.surface,
+                    content = colors.primary,
                     icon = Icons.Outlined.StarOutline,
                 )
             } else {
@@ -241,16 +245,16 @@ private fun GroupCard(group: SavingsGroup, onClick: () -> Unit) {
         Spacer(Modifier.height(16.dp))
         Row {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Aporte ${periodicityLabel(group.periodicity)}", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-                Text(formatSoles(group.contributionAmount), style = MaterialTheme.typography.headlineSmall)
+                Text("Aporte ${periodicityLabel(group.periodicity)}", style = MaterialTheme.typography.bodyMedium, color = secondary)
+                Text(formatSoles(group.contributionAmount), style = MaterialTheme.typography.headlineSmall, color = content)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("Pozo por turno", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-                Text(formatSoles(group.potAmount), style = MaterialTheme.typography.headlineSmall)
+                Text("Pozo por turno", style = MaterialTheme.typography.bodyMedium, color = secondary)
+                Text(formatSoles(group.potAmount), style = MaterialTheme.typography.headlineSmall, color = content)
             }
         }
         Spacer(Modifier.height(12.dp))
-        Text(cardSummary(group), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+        Text(cardSummary(group), style = MaterialTheme.typography.bodyLarge, color = secondary)
     }
 }
 
