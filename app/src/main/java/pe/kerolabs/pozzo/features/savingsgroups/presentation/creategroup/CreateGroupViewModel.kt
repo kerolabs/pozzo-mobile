@@ -15,10 +15,14 @@ import kotlinx.coroutines.launch
 import pe.kerolabs.pozzo.core.network.userMessage
 import pe.kerolabs.pozzo.features.iam.application.GetProfileUseCase
 import pe.kerolabs.pozzo.features.iam.domain.PhoneNumbers
+import kotlinx.coroutines.flow.first
+import pe.kerolabs.pozzo.features.savingsgroups.application.ActivatePaidPlanUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.CreateGroupUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.GetGroupDetailUseCase
+import pe.kerolabs.pozzo.features.savingsgroups.application.ObserveMyGroupsUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.application.UpdateGroupUseCase
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Destination
+import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupPlan
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Invitation
 import pe.kerolabs.pozzo.features.savingsgroups.domain.NewGroup
 import pe.kerolabs.pozzo.features.savingsgroups.domain.PaymentMethod
@@ -36,7 +40,13 @@ data class CreateGroupUiState(
     val name: String = "",
     val amount: String = "",
     val periodicity: Periodicity = Periodicity.MONTHLY,
-    val seats: Int = 8,
+    val seats: Int = GroupPlan.FREE_MAX_SEATS,
+    /** The plan the organizer chose; [effectivePlan] is the one the group gets. */
+    val plan: GroupPlan = GroupPlan.FREE,
+    /** The plan of the group being edited. */
+    val groupPlan: GroupPlan? = null,
+    /** The organizer already has an active group on the free plan, the only one it allows. */
+    val freePlanInUse: Boolean = false,
     val firstContributionDate: LocalDate = LocalDate.now().plusWeeks(1),
     val paymentMethod: PaymentMethod = PaymentMethod.YAPE,
     val destinationPhone: String = "",
@@ -54,6 +64,24 @@ data class CreateGroupUiState(
     val saved: Boolean = false,
 ) {
     val isEditing: Boolean get() = editingGroupId != null
+
+    /** Why the free plan does not fit this group, or null when it does. */
+    val freePlanUnavailableReason: String?
+        get() = when {
+            seats > GroupPlan.FREE_MAX_SEATS -> "Más de ${GroupPlan.FREE_MAX_SEATS} integrantes requiere el plan de pago."
+            !isEditing && freePlanInUse -> "Ya tienes una junta activa con el plan gratuito."
+            else -> null
+        }
+
+    val effectivePlan: GroupPlan
+        get() = when {
+            groupPlan == GroupPlan.PAID || freePlanUnavailableReason != null -> GroupPlan.PAID
+            isEditing -> GroupPlan.FREE
+            else -> plan
+        }
+
+    /** Saving moves the group to the paid plan: on creation, or because the edited group now needs it. */
+    val activatesPaidPlan: Boolean get() = effectivePlan == GroupPlan.PAID && groupPlan != GroupPlan.PAID
 
     /** Changing the number of members discards the turns, because they no longer cover the whole group. */
     val clearsTurns: Boolean get() = turnsAssigned && originalSeats != null && seats != originalSeats
@@ -78,6 +106,7 @@ data class CreateGroupUiState(
         seats = seats,
         firstContributionDate = firstContributionDate,
         destination = Destination(paymentMethod, destinationPhone),
+        plan = effectivePlan,
     )
 }
 
@@ -92,6 +121,8 @@ class CreateGroupViewModel @Inject constructor(
     private val updateGroup: UpdateGroupUseCase,
     private val getGroupDetail: GetGroupDetailUseCase,
     private val getProfile: GetProfileUseCase,
+    private val observeMyGroups: ObserveMyGroupsUseCase,
+    private val activatePaidPlan: ActivatePaidPlanUseCase,
 ) : ViewModel() {
 
     private val editingGroupId: String? = savedStateHandle["groupId"]
@@ -100,7 +131,20 @@ class CreateGroupViewModel @Inject constructor(
     val state: StateFlow<CreateGroupUiState> = _state.asStateFlow()
 
     init {
-        if (editingGroupId != null) loadGroup(editingGroupId) else offerWalletNumber()
+        if (editingGroupId != null) {
+            loadGroup(editingGroupId)
+        } else {
+            offerWalletNumber()
+            checkFreePlan()
+        }
+    }
+
+    // The free plan allows one active group; with one already, a new group goes on the paid plan.
+    private fun checkFreePlan() {
+        viewModelScope.launch {
+            val inUse = observeMyGroups().first().any { it.usesFreePlanSlot }
+            _state.update { it.copy(freePlanInUse = inUse) }
+        }
     }
 
     // The Yape or Plin number of the profile is offered as the destination; the organizer can change it.
@@ -130,6 +174,8 @@ class CreateGroupViewModel @Inject constructor(
                             minSeats = maxOf(NewGroup.MIN_SEATS, detail.activeMembers),
                             originalSeats = group.seats,
                             turnsAssigned = group.readiness.turnsAssigned,
+                            groupPlan = group.plan,
+                            plan = group.plan,
                         )
                     }
                 }
@@ -143,6 +189,8 @@ class CreateGroupViewModel @Inject constructor(
         _state.update { it.copy(amount = value.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(10)) }
 
     fun onPeriodicityChange(value: Periodicity) = _state.update { it.copy(periodicity = value) }
+
+    fun onPlanChange(value: GroupPlan) = _state.update { it.copy(plan = value) }
 
     fun onSeatsChange(value: Int) =
         _state.update { it.copy(seats = value.coerceIn(it.minSeats, NewGroup.MAX_SEATS)) }
@@ -179,8 +227,10 @@ class CreateGroupViewModel @Inject constructor(
         val groupId = current.editingGroupId ?: return create()
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
-            updateGroup(groupId, current.toNewGroup())
-                .onSuccess { _state.update { it.copy(isLoading = false, saved = true) } }
+            // More members than the free plan allows: the group moves to the paid plan before the new rules.
+            val upgraded = if (current.activatesPaidPlan) activatePaidPlan(groupId).map { } else Result.success(Unit)
+            upgraded.mapCatching { updateGroup(groupId, current.toNewGroup()).getOrThrow() }
+                .onSuccess { _state.update { it.copy(isLoading = false, saved = true, groupPlan = current.effectivePlan) } }
                 .onFailure { error -> _state.update { it.copy(isLoading = false, errorMessage = error.userMessage()) } }
         }
     }

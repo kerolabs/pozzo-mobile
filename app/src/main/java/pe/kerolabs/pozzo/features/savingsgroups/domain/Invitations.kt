@@ -21,6 +21,7 @@ data class NewGroup(
     val seats: Int,
     val firstContributionDate: LocalDate,
     val destination: Destination?,
+    val plan: GroupPlan = GroupPlan.FREE,
 ) {
     val potAmount: BigDecimal get() = contributionAmount.multiply(BigDecimal(seats))
 

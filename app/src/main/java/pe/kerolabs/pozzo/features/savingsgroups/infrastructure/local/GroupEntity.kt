@@ -12,6 +12,7 @@ data class GroupEntity(
     @PrimaryKey val id: String,
     val name: String,
     val status: String,
+    val plan: String,
     val role: String,
     @ColumnInfo(name = "organizer_name") val organizerName: String,
     @ColumnInfo(name = "contribution_amount") val contributionAmount: String,

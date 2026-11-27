@@ -87,6 +87,7 @@ import pe.kerolabs.pozzo.core.designsystem.theme.PozzoThemeExtras
 import pe.kerolabs.pozzo.core.format.formatMediumDate
 import pe.kerolabs.pozzo.core.format.formatSoles
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupDetail
+import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupPlan
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupStatus
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Invitation
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Member
@@ -546,6 +547,7 @@ private fun DetailContent(
                             "Destino" to "${paymentMethodLabel(it.method)} · ${it.phoneNumber.chunked(3).joinToString(" ")}"
                         },
                         "Turnos" to turnMethodLabel(group.turnMethod),
+                        "Plan" to if (group.plan == GroupPlan.PAID) "De pago" else "Gratuito",
                     ),
                 )
             }

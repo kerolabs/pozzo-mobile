@@ -115,6 +115,10 @@ class StartGroupUseCase @Inject constructor(private val repository: SavingsGroup
     suspend operator fun invoke(groupId: String) = repository.startGroup(groupId)
 }
 
+class ActivatePaidPlanUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
+    suspend operator fun invoke(groupId: String) = repository.activatePaidPlan(groupId)
+}
+
 class OpenNewCycleUseCase @Inject constructor(private val repository: SavingsGroupRepository) {
     suspend operator fun invoke(groupId: String, firstContributionDate: LocalDate) =
         repository.openNewCycle(groupId, firstContributionDate)

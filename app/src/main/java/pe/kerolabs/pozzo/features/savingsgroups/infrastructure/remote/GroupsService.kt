@@ -38,6 +38,9 @@ interface GroupsService {
     @POST("groups/{groupId}/start")
     suspend fun startGroup(@Path("groupId") groupId: String): Response<GroupDto>
 
+    @POST("groups/{groupId}/plan/paid")
+    suspend fun activatePaidPlan(@Path("groupId") groupId: String): Response<GroupDto>
+
     @POST("groups/{groupId}/new-cycle")
     suspend fun openNewCycle(@Path("groupId") groupId: String, @Body request: OpenNewCycleRequestDto): Response<GroupDto>
 
