@@ -27,6 +27,18 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Invitation links (kerolabs.github.io/unirme/?c=CODE) open the app when it is installed.
+                 The site publishes .well-known/assetlinks.json with the certificate of the app. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="kerolabs.github.io" />
+                <data android:pathPrefix="/unirme" />
+            </intent-filter>
         </activity>
         <!-- Pushes of Firebase Cloud Messaging; in the background Firebase shows them with these defaults. -->
         <service
