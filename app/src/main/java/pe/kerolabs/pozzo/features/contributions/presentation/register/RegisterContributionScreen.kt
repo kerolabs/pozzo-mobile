@@ -335,21 +335,42 @@ private fun androidx.compose.foundation.layout.ColumnScope.ReviewStep(state: Reg
                 }
             }
         }
-        PozzoTextField(
-            label = "Monto",
-            value = form.amount,
-            onValueChange = viewModel::onAmountChange,
-            prefix = "S/",
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        )
-        DateField("Fecha del pago", form.paidAt, viewModel::onPaidAtChange)
-        PozzoTextField(label = "Destinatario", value = form.payeeName, onValueChange = viewModel::onPayeeChange)
-        PozzoTextField(
-            label = "N.º de operación",
-            value = form.operationNumber,
-            onValueChange = viewModel::onOperationChange,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        )
+        // What the application read stays as read; correcting it sends the contribution to the organizer.
+        if (state.showsReadData) {
+            SummaryCard(
+                rows = listOf(
+                    "Monto" to formatSoles(form.amountValue ?: java.math.BigDecimal.ZERO),
+                    "Fecha del pago" to formatMediumDate(form.paidAt),
+                    "Destinatario" to form.payeeName,
+                    "N.º de operación" to form.operationNumber,
+                ),
+            )
+            PozzoTextButton(text = "Corregir datos", onClick = viewModel::correct)
+        } else {
+            if (state.correcting) {
+                Text(
+                    "Estás corrigiendo lo que leímos del comprobante. La cabeza de junta revisará tu aporte antes de validarlo.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = status.onWarningContainer,
+                    modifier = Modifier.fillMaxWidth().background(status.warningContainer, MaterialTheme.shapes.large).padding(16.dp),
+                )
+            }
+            PozzoTextField(
+                label = "Monto",
+                value = form.amount,
+                onValueChange = viewModel::onAmountChange,
+                prefix = "S/",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            )
+            DateField("Fecha del pago", form.paidAt, viewModel::onPaidAtChange)
+            PozzoTextField(label = "Destinatario", value = form.payeeName, onValueChange = viewModel::onPayeeChange)
+            PozzoTextField(
+                label = "N.º de operación",
+                value = form.operationNumber,
+                onValueChange = viewModel::onOperationChange,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            )
+        }
         Column {
             FieldLabel("Aplicación")
             Spacer(Modifier.height(8.dp))

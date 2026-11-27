@@ -79,6 +79,10 @@ fun inconsistencyLabel(field: String): String = when (field) {
     "AMOUNT" -> "Monto distinto"
     "PAYEE" -> "Destinatario"
     "DATE" -> "Fuera de fecha"
+    "EDITED_AMOUNT" -> "Monto corregido a mano"
+    "EDITED_PAYEE" -> "Destinatario corregido a mano"
+    "EDITED_DATE" -> "Fecha corregida a mano"
+    "EDITED_OPERATION" -> "Operación corregida a mano"
     else -> field
 }
 

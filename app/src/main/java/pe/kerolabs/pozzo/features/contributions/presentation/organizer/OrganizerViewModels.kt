@@ -16,12 +16,16 @@ import kotlinx.coroutines.launch
 import pe.kerolabs.pozzo.core.network.userMessage
 import pe.kerolabs.pozzo.features.contributions.application.DeliverPotUseCase
 import pe.kerolabs.pozzo.features.contributions.application.GetPendingReviewsUseCase
+import pe.kerolabs.pozzo.features.contributions.application.GetCycleHistoryUseCase
+import pe.kerolabs.pozzo.features.contributions.application.ReopenReviewUseCase
+import pe.kerolabs.pozzo.features.contributions.application.GetReviewedContributionsUseCase
 import pe.kerolabs.pozzo.features.contributions.application.GetPotStateUseCase
 import pe.kerolabs.pozzo.features.contributions.application.RegisterCashUseCase
 import pe.kerolabs.pozzo.features.contributions.application.RegisterCoverageUseCase
 import pe.kerolabs.pozzo.features.contributions.application.ReviewContributionUseCase
 import pe.kerolabs.pozzo.features.contributions.domain.Contribution
 import pe.kerolabs.pozzo.features.contributions.domain.Cycle
+import pe.kerolabs.pozzo.features.contributions.domain.PeriodState
 import pe.kerolabs.pozzo.features.contributions.domain.Period
 import pe.kerolabs.pozzo.features.contributions.domain.PotDelivery
 import pe.kerolabs.pozzo.features.contributions.domain.ReviewDecision
@@ -40,6 +44,9 @@ data class ReviewsUiState(
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
     val decided: ReviewDecision? = null,
+    /** Approved or rejected in this period, and still possible to review again. */
+    val reviewed: List<Contribution> = emptyList(),
+    val reopening: String? = null,
 )
 
 abstract class ReviewsBaseViewModel(
@@ -48,6 +55,8 @@ abstract class ReviewsBaseViewModel(
     private val getPotState: GetPotStateUseCase,
     private val getPendingReviews: GetPendingReviewsUseCase,
     private val reviewContribution: ReviewContributionUseCase,
+    private val getReviewed: GetReviewedContributionsUseCase,
+    private val reopenReview: ReopenReviewUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ReviewsUiState())
@@ -60,11 +69,28 @@ abstract class ReviewsBaseViewModel(
                 _state.update { it.copy(isLoading = false, errorMessage = error.userMessage()) }
                 return@launch
             }
+            val reviewed = getReviewed(pot.second.id).getOrDefault(emptyList())
             getPendingReviews(pot.second.id)
                 .onSuccess { reviews ->
-                    _state.update { it.copy(cycle = pot.first, period = pot.second, reviews = reviews, isLoading = false) }
+                    _state.update {
+                        it.copy(cycle = pot.first, period = pot.second, reviews = reviews, reviewed = reviewed, isLoading = false)
+                    }
                 }
                 .onFailure { error -> _state.update { it.copy(isLoading = false, errorMessage = error.userMessage()) } }
+        }
+    }
+
+    /** Takes back the approval or the rejection of a contribution, which goes back to the list to review. */
+    fun reopen(contributionId: String) {
+        if (_state.value.reopening != null) return
+        viewModelScope.launch {
+            _state.update { it.copy(reopening = contributionId, errorMessage = null) }
+            reopenReview(contributionId)
+                .onSuccess {
+                    _state.update { it.copy(reopening = null) }
+                    load()
+                }
+                .onFailure { error -> _state.update { it.copy(reopening = null, errorMessage = error.userMessage()) } }
         }
     }
 
@@ -86,8 +112,11 @@ class ReviewsViewModel @Inject constructor(
     getPotState: GetPotStateUseCase,
     getPendingReviews: GetPendingReviewsUseCase,
     reviewContribution: ReviewContributionUseCase,
+    getReviewed: GetReviewedContributionsUseCase,
+    reopenReview: ReopenReviewUseCase,
 ) : ReviewsBaseViewModel(
     savedStateHandle.toRoute<ReviewsRoute>().groupId, null, getPotState, getPendingReviews, reviewContribution,
+    getReviewed, reopenReview,
 )
 
 @HiltViewModel
@@ -96,12 +125,16 @@ class ReviewDetailViewModel @Inject constructor(
     getPotState: GetPotStateUseCase,
     getPendingReviews: GetPendingReviewsUseCase,
     reviewContribution: ReviewContributionUseCase,
+    getReviewed: GetReviewedContributionsUseCase,
+    reopenReview: ReopenReviewUseCase,
 ) : ReviewsBaseViewModel(
     savedStateHandle.toRoute<ReviewDetailRoute>().groupId,
     savedStateHandle.toRoute<ReviewDetailRoute>().contributionId,
     getPotState,
     getPendingReviews,
     reviewContribution,
+    getReviewed,
+    reopenReview,
 )
 
 /** H3 and H5: a cash contribution received by the organizer, or a contribution covered by another member. */
@@ -216,11 +249,25 @@ data class DeliverUiState(
     val delivery: PotDelivery? = null,
 )
 
+/** The delivery of [period] as the history shows it, or null when it was not recorded. */
+private suspend fun DeliverViewModel.recordedDelivery(period: Period, groupId: String, history: GetCycleHistoryUseCase): PotDelivery? {
+    val (cycle, periods) = history(groupId).getOrNull() ?: return null
+    val delivered = periods.firstOrNull { it.id == period.id && it.state == PeriodState.DELIVERED } ?: return null
+    return PotDelivery(
+        deliveredPeriodId = delivered.id,
+        deliveredTurn = delivered.turnNumber,
+        deliveredAmount = delivered.payoutAmount,
+        cycleClosed = !cycle.isActive,
+        nextTurn = if (cycle.isActive) cycle.currentTurn else null,
+    )
+}
+
 @HiltViewModel
 class DeliverViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getPotState: GetPotStateUseCase,
     private val deliverPot: DeliverPotUseCase,
+    private val getCycleHistory: GetCycleHistoryUseCase,
 ) : ViewModel() {
 
     val groupId: String = savedStateHandle.toRoute<DeliverRoute>().groupId
@@ -243,7 +290,23 @@ class DeliverViewModel @Inject constructor(
             _state.update { it.copy(isSaving = true, errorMessage = null) }
             deliverPot(period.id)
                 .onSuccess { delivery -> _state.update { it.copy(isSaving = false, delivery = delivery) } }
-                .onFailure { error -> _state.update { it.copy(isSaving = false, errorMessage = error.userMessage()) } }
+                .onFailure { error ->
+                    // The answer may have been lost after the delivery was recorded: look before reporting a failure.
+                    val recorded = deliveryRecorded(period)
+                    _state.update {
+                        if (recorded != null) {
+                            it.copy(isSaving = false, delivery = recorded)
+                        } else {
+                            it.copy(
+                                isSaving = false,
+                                errorMessage = "No se registró la entrega: ${error.userMessage()} " +
+                                    "El pozo sigue pendiente de entrega; puedes intentarlo de nuevo.",
+                            )
+                        }
+                    }
+                }
         }
     }
+
+    private suspend fun deliveryRecorded(period: Period): PotDelivery? = recordedDelivery(period, groupId, getCycleHistory)
 }
