@@ -148,7 +148,8 @@ fun ProfileScreen(onTheme: () -> Unit, onChangePhone: () -> Unit, viewModel: Pro
             ProfileRow(
                 Icons.Outlined.AccountBalanceWallet,
                 "Número de Yape o Plin",
-                profile.walletNumber?.let(PhoneNumbers::grouped) ?: "Agrégalo para recibir los aportes",
+                profile.walletNumber?.let(PhoneNumbers::grouped)
+                    ?: "Tu celular, ${PhoneNumbers.display(profile.phoneNumber)}. Tócalo si usas otro",
                 Icons.Outlined.Edit,
             ) { editing = ProfileField.WALLET }
             ProfileRow(
@@ -221,7 +222,8 @@ fun ProfileScreen(onTheme: () -> Unit, onChangePhone: () -> Unit, viewModel: Pro
         ProfileField.WALLET -> EditDialog(
             title = "Número de Yape o Plin",
             label = "Celular donde recibes transferencias",
-            current = profile?.walletNumber.orEmpty(),
+            // Without a number of its own, the account's phone is proposed: most people use the same one.
+            current = profile?.walletNumber ?: profile?.phoneNumber?.filter(Char::isDigit)?.takeLast(9).orEmpty(),
             supportingText = "Se propone como destino de los aportes cuando creas una junta.",
             keyboardType = KeyboardType.Phone,
             sanitize = { it.filter(Char::isDigit).take(9) },

@@ -66,6 +66,8 @@ data class SavingsGroup(
     val currency: String,
     val periodicity: Periodicity,
     val seats: Int,
+    /** Active members; the seats still free are [seats] minus these. */
+    val membersCount: Int,
     val potAmount: BigDecimal,
     val firstContributionDate: LocalDate,
     val destination: Destination?,

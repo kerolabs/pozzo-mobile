@@ -225,6 +225,7 @@ class SavingsGroupRepositoryImpl @Inject constructor(
         currency = rules.currency,
         periodicity = rules.periodicity,
         seats = rules.seats,
+        membersCount = membersCount,
         potAmount = rules.potAmount.toPlainString(),
         firstContributionDate = rules.firstContributionDate,
         destinationMethod = rules.destination?.method,
@@ -250,6 +251,7 @@ class SavingsGroupRepositoryImpl @Inject constructor(
         currency = currency,
         periodicity = Periodicity.valueOf(periodicity),
         seats = seats,
+        membersCount = membersCount,
         potAmount = BigDecimal(potAmount),
         firstContributionDate = LocalDate.parse(firstContributionDate),
         destination = if (destinationMethod != null && destinationPhone != null) {

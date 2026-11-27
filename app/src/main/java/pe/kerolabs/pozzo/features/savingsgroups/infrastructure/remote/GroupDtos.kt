@@ -11,6 +11,7 @@ data class GroupDto(
     val role: String,
     val organizerName: String,
     val rules: RulesDto,
+    val membersCount: Int = 0,
     val turnMethod: String?,
     val myTurnNumber: Int?,
     val myTurnDate: String?,
