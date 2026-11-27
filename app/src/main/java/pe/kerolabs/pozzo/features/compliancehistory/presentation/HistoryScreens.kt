@@ -8,11 +8,13 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.HourglassTop
 import androidx.compose.material.icons.outlined.IosShare
@@ -64,6 +67,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.kerolabs.pozzo.core.designsystem.components.InitialsAvatar
+import pe.kerolabs.pozzo.core.designsystem.components.PozzoOutlinedButton
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoPrimaryButton
 import pe.kerolabs.pozzo.core.designsystem.components.StatusChip
 import pe.kerolabs.pozzo.core.designsystem.components.TabLabel
@@ -79,8 +83,9 @@ import pe.kerolabs.pozzo.features.contributions.presentation.common.LoadingOrErr
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.rememberMemberPhotos
 
 /**
- * Root of the History destination. The organizer of a started group sees who contributed in each period
- * (K1) and how every member complies (K2); a participant sees their own history (G3).
+ * Root of the History destination. In a started group the member sees who contributed in each period (K1),
+ * choosing between the groups they organize and the ones they take part in; the organizer also sees how
+ * every member complies (K2). Without started groups, the member sees their own history (G3).
  */
 @Composable
 fun HistoryScreen(
@@ -91,7 +96,7 @@ fun HistoryScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     when {
         state.isResolving -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        state.isOrganizerView -> GroupHistory(state, viewModel, onMyHistory)
+        state.hasGroups -> GroupHistory(state, viewModel, onMyHistory)
         else -> MyHistoryScreen(onBack = null, onGroupContributions = onGroupContributions)
     }
 }
@@ -101,18 +106,62 @@ fun HistoryScreen(
 private fun GroupHistory(state: HistoryUiState, viewModel: HistoryViewModel, onMyHistory: () -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var choosing by remember { mutableStateOf(false) }
+    var choosingRole by remember { mutableStateOf(false) }
+    val showsMembers = state.showsMembers && tab == 1
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Historial", style = MaterialTheme.typography.titleLarge) },
                 actions = {
-                    IconButton(onClick = onMyHistory) { Icon(Icons.Outlined.Person, contentDescription = "Mi historial") }
+                    Box {
+                        IconButton(onClick = { choosingRole = true }) {
+                            Icon(Icons.Outlined.Person, contentDescription = "Ver juntas como cabeza o participante")
+                        }
+                        DropdownMenu(expanded = choosingRole, onDismissRequest = { choosingRole = false }) {
+                            HistoryRole.entries.forEach { role ->
+                                val count = state.groupsOf(role).size
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            when (count) {
+                                                0 -> "${role.label} (sin juntas)"
+                                                1 -> "${role.label} · 1 junta"
+                                                else -> "${role.label} · $count juntas"
+                                            },
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        if (role == state.role) Icon(Icons.Outlined.Check, contentDescription = "Elegido")
+                                    },
+                                    enabled = count > 0,
+                                    onClick = {
+                                        choosingRole = false
+                                        if (role != state.role) {
+                                            tab = 0
+                                            viewModel.selectRole(role)
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
             )
         },
+        bottomBar = {
+            // The member's own history, with the link to share it (G3), is a tap away from any group.
+            Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                PozzoOutlinedButton(text = "Ver y compartir mi historial", onClick = onMyHistory, icon = Icons.Outlined.IosShare)
+            }
+        },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
+            Text(
+                "Como ${state.role.label.lowercase()}",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -127,13 +176,13 @@ private fun GroupHistory(state: HistoryUiState, viewModel: HistoryViewModel, onM
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (state.organizedGroups.size > 1) {
+                if (state.groups.size > 1) {
                     Box {
                         OutlinedIconButton(onClick = { choosing = true }) {
                             Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "Elegir otra junta")
                         }
                         DropdownMenu(expanded = choosing, onDismissRequest = { choosing = false }) {
-                            state.organizedGroups.forEach { group ->
+                            state.groups.forEach { group ->
                                 DropdownMenuItem(
                                     text = { Text(if (group.isClosed) "${group.name} (cerrada)" else group.name) },
                                     onClick = {
@@ -147,9 +196,12 @@ private fun GroupHistory(state: HistoryUiState, viewModel: HistoryViewModel, onM
                 }
             }
             Spacer(Modifier.height(8.dp))
-            PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.surface) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { TabLabel("Aportes") })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { TabLabel("Integrantes") })
+            // A participant reads the contributions of the group, but only the organizer reads each member's compliance.
+            if (state.showsMembers) {
+                PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.surface) {
+                    Tab(selected = tab == 0, onClick = { tab = 0 }, text = { TabLabel("Aportes") })
+                    Tab(selected = tab == 1, onClick = { tab = 1 }, text = { TabLabel("Integrantes") })
+                }
             }
             val cycle = state.cycle
             if (cycle == null) {
@@ -158,7 +210,7 @@ private fun GroupHistory(state: HistoryUiState, viewModel: HistoryViewModel, onM
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 16.dp)) {
                 val photos = rememberMemberPhotos(state.selectedGroupId)
-                if (tab == 0) ContributionsMatrix(cycle, state.periods, photos) else MembersCompliance(state.members, photos)
+                if (showsMembers) MembersCompliance(state.members, photos) else ContributionsMatrix(cycle, state.periods, photos)
             }
         }
     }
@@ -226,7 +278,8 @@ private fun ContributionsMatrix(cycle: Cycle, periods: List<Period>, photos: Map
         }
     }
     Spacer(Modifier.height(12.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+    // The legend wraps instead of running off the edge of narrow screens.
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Legend(ContributionState.VALIDATED, "Validado")
         Legend(ContributionState.IN_REVIEW, "Revisión")
         Legend(ContributionState.PENDING, "Pendiente")
@@ -353,11 +406,6 @@ fun MyHistoryScreen(
                 navigationIcon = {
                     if (onBack != null) {
                         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver") }
-                    }
-                },
-                actions = {
-                    if (state.history != null) {
-                        IconButton(onClick = viewModel::share) { Icon(Icons.Outlined.IosShare, contentDescription = "Compartir mi historial") }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
