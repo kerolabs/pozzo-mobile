@@ -25,12 +25,17 @@ import pe.kerolabs.pozzo.features.savingsgroups.application.RefreshMyGroupsUseCa
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupStatus
 import pe.kerolabs.pozzo.features.savingsgroups.domain.SavingsGroup
 
-/** A started group the member organizes, to choose in the organizer's history. */
-data class OrganizedGroup(val id: String, val name: String, val isClosed: Boolean)
+/** A started group of the member, to choose in the history of their groups. */
+data class HistoryGroup(val id: String, val name: String, val isClosed: Boolean)
+
+/** The groups the history lists: the ones the member organizes or the ones they take part in. */
+enum class HistoryRole(val label: String) { ORGANIZER("Cabeza de junta"), PARTICIPANT("Participante") }
 
 data class HistoryUiState(
     val isResolving: Boolean = true,
-    val organizedGroups: List<OrganizedGroup> = emptyList(),
+    val role: HistoryRole = HistoryRole.ORGANIZER,
+    val organizedGroups: List<HistoryGroup> = emptyList(),
+    val joinedGroups: List<HistoryGroup> = emptyList(),
     val selectedGroupId: String? = null,
     val cycle: Cycle? = null,
     val periods: List<Period> = emptyList(),
@@ -38,14 +43,21 @@ data class HistoryUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 ) {
-    /** The organizer sees the history of their groups (K1 and K2); everyone else, their own (G3). */
-    val isOrganizerView: Boolean get() = organizedGroups.isNotEmpty()
-    val selectedGroup: OrganizedGroup? get() = organizedGroups.firstOrNull { it.id == selectedGroupId }
+    /** With a started group the history shows its periods (K1); without any, the member's own history (G3). */
+    val hasGroups: Boolean get() = organizedGroups.isNotEmpty() || joinedGroups.isNotEmpty()
+    val groups: List<HistoryGroup> get() = groupsOf(role)
+    val selectedGroup: HistoryGroup? get() = groups.firstOrNull { it.id == selectedGroupId }
+
+    /** Only the organizer reads how every member of the group complies (K2). */
+    val showsMembers: Boolean get() = role == HistoryRole.ORGANIZER
+
+    fun groupsOf(role: HistoryRole): List<HistoryGroup> =
+        if (role == HistoryRole.ORGANIZER) organizedGroups else joinedGroups
 }
 
 /**
- * Root of the History destination: decides between the organizer's view and the member's own history,
- * and loads the contributions by period and the compliance of the members of the chosen group.
+ * Root of the History destination: lists the started groups the member organizes or takes part in, and
+ * loads the contributions by period of the chosen one and, for the organizer, the compliance of its members.
  */
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
@@ -61,13 +73,22 @@ class HistoryViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             refreshMyGroups()
-            val organized = observeMyGroups().first()
-                .filter { it.isOrganizer && it.isStarted }
+            val started = observeMyGroups().first()
+                .filter { it.isStarted }
                 .sortedBy { it.status == GroupStatus.CLOSED }
-                .map(SavingsGroup::toOrganized)
-            _state.update { it.copy(isResolving = false, organizedGroups = organized) }
-            organized.firstOrNull()?.let { select(it.id) }
+            val organized = started.filter { it.isOrganizer }.map(SavingsGroup::toHistoryGroup)
+            val joined = started.filterNot { it.isOrganizer }.map(SavingsGroup::toHistoryGroup)
+            val role = if (organized.isEmpty() && joined.isNotEmpty()) HistoryRole.PARTICIPANT else HistoryRole.ORGANIZER
+            _state.update { it.copy(isResolving = false, organizedGroups = organized, joinedGroups = joined, role = role) }
+            _state.value.groups.firstOrNull()?.let { select(it.id) }
         }
+    }
+
+    /** Lists the groups of the other role and opens the first one. */
+    fun selectRole(role: HistoryRole) {
+        val first = _state.value.groupsOf(role).firstOrNull() ?: return
+        _state.update { it.copy(role = role) }
+        select(first.id)
     }
 
     fun select(groupId: String) {
@@ -77,10 +98,11 @@ class HistoryViewModel @Inject constructor(
 
     fun load() {
         val groupId = _state.value.selectedGroupId ?: return
+        val withMembers = _state.value.showsMembers
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
             val history = async { getCycleHistory(groupId) }
-            val compliance = async { getGroupCompliance(groupId) }
+            val compliance = async { if (withMembers) getGroupCompliance(groupId) else Result.success(emptyList()) }
             val error = history.await().exceptionOrNull() ?: compliance.await().exceptionOrNull()
             _state.update { current ->
                 if (current.selectedGroupId != groupId) return@update current
@@ -97,7 +119,7 @@ class HistoryViewModel @Inject constructor(
     }
 }
 
-private fun SavingsGroup.toOrganized() = OrganizedGroup(id, name, status == GroupStatus.CLOSED)
+private fun SavingsGroup.toHistoryGroup() = HistoryGroup(id, name, status == GroupStatus.CLOSED)
 
 data class MyHistoryUiState(
     val history: MyHistory? = null,
