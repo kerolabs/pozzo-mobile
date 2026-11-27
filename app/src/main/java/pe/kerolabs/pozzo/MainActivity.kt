@@ -52,5 +52,13 @@ class MainActivity : ComponentActivity() {
 
     private fun takeDeepLink(intent: Intent?) {
         intent?.getStringExtra(PushNotifications.EXTRA_DEEP_LINK)?.let { pendingDeepLink.value = it }
+        invitationCode(intent)?.let { pendingDeepLink.value = "pozzo://invitations/$it" }
+    }
+
+    /** The code of an invitation link the app was opened with, as kerolabs.github.io/unirme/?c=JB7K4M. */
+    private fun invitationCode(intent: Intent?): String? {
+        val data = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.data ?: return null
+        if (data.host != "kerolabs.github.io" || data.path?.startsWith("/unirme") != true) return null
+        return data.getQueryParameter("c")?.filter(Char::isLetterOrDigit)?.uppercase()?.takeIf { it.isNotEmpty() }
     }
 }

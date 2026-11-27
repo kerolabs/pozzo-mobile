@@ -336,6 +336,10 @@ fun CashScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: CashViewModel 
     val photos = rememberMemberPhotos(state.cycle?.groupId)
     LaunchedEffect(state.done) { if (state.done != null) onDone() }
     val period = state.period
+    var confirmingAmount by remember { mutableStateOf(false) }
+    // T61: a cash amount other than what the member owes is registered only after the organizer confirms it.
+    val owed = state.selectedMember?.let { period?.amountOwedBy(it) }
+    val differs = owed != null && state.amountValue != null && state.amountValue!!.compareTo(owed) != 0
     OrganizerScaffold(
         title = "Registrar efectivo",
         onBack = onBack,
@@ -345,12 +349,33 @@ fun CashScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: CashViewModel 
             }
             PozzoPrimaryButton(
                 text = "Registrar aporte",
-                onClick = viewModel::register,
+                onClick = { if (differs) confirmingAmount = true else viewModel.register() },
                 enabled = state.selectedMember != null && state.amountValue != null,
                 loading = state.isSaving,
             )
         },
     ) {
+        if (confirmingAmount && owed != null) {
+            val name = period?.members?.firstOrNull { it.membershipId == state.selectedMember }?.displayName
+                ?.substringBefore(' ').orEmpty()
+            AlertDialog(
+                onDismissRequest = { confirmingAmount = false },
+                title = { Text("¿Registrar un monto distinto?") },
+                text = {
+                    Text(
+                        "$name debe ${formatSoles(owed)} en este período y vas a registrar " +
+                            "${formatSoles(state.amountValue!!)}. El aporte quedará validado con ese monto.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmingAmount = false
+                        viewModel.register()
+                    }) { Text("Registrar igual") }
+                },
+                dismissButton = { TextButton(onClick = { confirmingAmount = false }) { Text("Corregir monto") } },
+            )
+        }
         if (period == null) {
             LoadingOrError(state.isLoading, state.errorMessage, onBack, Modifier.height(320.dp))
             return@OrganizerScaffold

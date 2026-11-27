@@ -66,6 +66,7 @@ import pe.kerolabs.pozzo.features.notifications.presentation.PushViewModel
 import pe.kerolabs.pozzo.features.notifications.presentation.navigation.NoticesRoute
 import pe.kerolabs.pozzo.features.notifications.presentation.navigation.notificationsNavGraph
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.GroupDetailRoute
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.JoinPreviewRoute
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.JoinCodeRoute
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.MyGroupsRoute
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.SavingsGroupsNavGraphRoute
@@ -98,7 +99,8 @@ private fun NavController.navigateToTop(destination: TopDestination) = navigate(
 /**
  * Opens the screen a notice points to: "pozzo://groups/{id}" is the pot of the group,
  * "pozzo://groups/{id}/detail" its members and turns before it starts, "pozzo://groups/{id}/reviews" the
- * receipts to review, "pozzo://groups" the list of groups and "pozzo://compliance" the member's history.
+ * receipts to review, "pozzo://groups" the list of groups, "pozzo://compliance" the member's history and
+ * "pozzo://invitations/{code}" the group an invitation link points to.
  */
 private fun NavController.openDeepLink(deepLink: String) {
     val parts = deepLink.removePrefix("pozzo://").split('/').filter { it.isNotEmpty() }
@@ -109,6 +111,7 @@ private fun NavController.openDeepLink(deepLink: String) {
         parts.size == 1 && parts[0] == "groups" -> navigate(MyGroupsRoute) { popUpTo<MyGroupsRoute> { inclusive = true } }
         parts.size == 2 && parts[0] == "groups" -> navigate(PotRoute(parts[1]))
         parts.firstOrNull() == "compliance" -> navigate(MyHistoryRoute)
+        parts.size == 2 && parts[0] == "invitations" -> navigate(JoinPreviewRoute(parts[1])) { launchSingleTop = true }
     }
 }
 
