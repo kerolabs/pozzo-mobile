@@ -154,6 +154,13 @@ fun PotScreen(
                                     onCover(groupId)
                                 })
                             }
+                            // Until the pot is delivered, an approval or a rejection can be reviewed again.
+                            if (cycle?.isOrganizer == true && period != null && period.state != PeriodState.DELIVERED) {
+                                DropdownMenuItem(text = { Text("Aportes revisados") }, onClick = {
+                                    menuOpen = false
+                                    onReviews(groupId)
+                                })
+                            }
                         }
                     }
                 },

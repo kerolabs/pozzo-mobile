@@ -294,8 +294,13 @@ private fun androidx.compose.foundation.layout.ColumnScope.ReviewStep(state: Reg
     val colors = MaterialTheme.colorScheme
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            if (form.readFromImage) "Pozzo leyó estos datos de tu comprobante. Corrige lo que haga falta."
-            else "Completa los datos tal como aparecen en tu comprobante.",
+            when {
+                state.showsReadData -> "Pozzo leyó estos datos de tu comprobante. Revisa que estén bien antes de confirmar."
+                form.readFromImage && state.readByApp == null ->
+                    "Pozzo no pudo leer todos los datos de tu comprobante. Completa los que falten."
+                form.readFromImage -> "Corrige solo lo que Pozzo leyó mal."
+                else -> "Completa los datos tal como aparecen en tu comprobante."
+            },
             style = MaterialTheme.typography.bodyLarge,
             color = colors.onSurfaceVariant,
         )
@@ -460,8 +465,13 @@ private fun androidx.compose.foundation.layout.ColumnScope.ResultStep(
                 rows = contribution.inconsistencies.flatMap { item ->
                     listOf(
                         "Resultado" to inconsistencyLabel(item.field),
-                        "Esperado · ${fieldLabel(item.field)}" to item.expected,
-                        "Leído en el comprobante" to item.found,
+                        // A field corrected by hand compares what Pozzo read with what the member wrote.
+                        if (item.field.startsWith("EDITED_")) {
+                            "Leído en el comprobante" to item.expected
+                        } else {
+                            "Esperado · ${fieldLabel(item.field)}" to item.expected
+                        },
+                        (if (item.field.startsWith("EDITED_")) "Corregido a" else "Leído en el comprobante") to item.found,
                     )
                 },
             )

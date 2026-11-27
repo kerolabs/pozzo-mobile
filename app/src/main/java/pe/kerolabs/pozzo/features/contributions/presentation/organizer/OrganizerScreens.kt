@@ -266,6 +266,11 @@ fun ReviewDetailScreen(
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             CheckRow(title = "N.º de operación", detail = "${receipt?.operationNumber.orEmpty()} · no está repetido", ok = true)
+            // What the member changed after Pozzo read the receipt.
+            contribution.inconsistencies.filter { it.field.startsWith("EDITED_") }.forEach { edit ->
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                CheckRow(title = inconsistencyLabel(edit.field), detail = "Pozzo leyó ${edit.expected} · escribió ${edit.found}", ok = false)
+            }
         }
         if (contribution.hasReceiptImage) {
             PozzoOutlinedButton(text = "Ver comprobante", onClick = { seeingImage = true }, icon = Icons.Outlined.Image)
