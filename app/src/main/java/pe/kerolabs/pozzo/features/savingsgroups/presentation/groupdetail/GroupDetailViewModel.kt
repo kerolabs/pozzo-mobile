@@ -30,7 +30,8 @@ import pe.kerolabs.pozzo.features.savingsgroups.domain.Member
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Turn
 import pe.kerolabs.pozzo.features.savingsgroups.presentation.navigation.GroupDetailRoute
 
-enum class GroupDetailTab(val label: String) { MEMBERS("Integrantes"), TURNS("Turnos"), RULES("Reglas") }
+/** Members and their turns share one tab; the rules have their own. */
+enum class GroupDetailTab(val label: String) { MEMBERS("Integrantes"), RULES("Reglas") }
 
 data class AddMemberForm(
     val name: String = "",
@@ -204,7 +205,7 @@ class GroupDetailViewModel @Inject constructor(
                         it.copy(
                             isRegisteringDropout = false,
                             confirmingDropout = null,
-                            tab = GroupDetailTab.TURNS,
+                            tab = GroupDetailTab.MEMBERS,
                             message = "${member.displayName} dejó la junta. Asigna a alguien en su turno.",
                         )
                     }

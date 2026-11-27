@@ -119,7 +119,6 @@ fun GroupDetailScreen(
     onBack: () -> Unit,
     onAssignTurns: (groupId: String, seats: Int) -> Unit,
     onStartGroup: (groupId: String) -> Unit,
-    onOpenPot: (groupId: String) -> Unit,
     onPastPeriods: (groupId: String) -> Unit,
     onEditGroup: (groupId: String) -> Unit,
     onClosed: () -> Unit,
@@ -260,11 +259,8 @@ fun GroupDetailScreen(
             }
         },
         bottomBar = {
-            if (detail != null && detail.group.status == GroupStatus.STARTED) {
-                Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    PozzoPrimaryButton(text = "Ver el pozo", onClick = { onOpenPot(viewModel.groupId) })
-                }
-            } else if (detail != null && detail.group.status == GroupStatus.CLOSED) {
+            // A started group opens from its pot, so going back is the way to the pot.
+            if (detail != null && detail.group.status == GroupStatus.CLOSED) {
                 // A closed group has no pot to open, but its periods stay readable for every member (US32).
                 Column(
                     Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -465,45 +461,59 @@ private fun DetailContent(
             Spacer(Modifier.height(8.dp))
         }
         when (tab) {
-            GroupDetailTab.MEMBERS -> items(detail.members.filter { it.membershipId != hiddenMember }, key = { it.membershipId }) { member ->
-                MemberRow(member = member, onOpen = { onOpenMember(member.membershipId) })
-            }
-            GroupDetailTab.TURNS -> {
-                if (detail.turns.turns.isEmpty()) {
+            // Once the turns are defined, each member shows in the order they collect, with their turn.
+            GroupDetailTab.MEMBERS -> if (detail.turns.turns.isEmpty()) {
+                items(detail.members.filter { it.membershipId != hiddenMember }, key = { it.membershipId }) { member ->
+                    MemberRow(member = member, onOpen = { onOpenMember(member.membershipId) })
+                }
+                if (!group.isStarted) {
                     item {
                         Text(
-                            "Aún no se definen los turnos. La cabeza de junta los asigna cuando el grupo está completo.",
-                            style = MaterialTheme.typography.bodyLarge,
+                            "La cabeza de junta define los turnos cuando el grupo está completo.",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = colors.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 16.dp),
+                            modifier = Modifier.padding(vertical = 12.dp),
                         )
                     }
-                } else {
-                    items(detail.turns.turns, key = { it.turnNumber }) { turn ->
-                        // A turn whose member is no longer active belongs to someone who dropped out.
-                        val dropped = group.isStarted && turn.membershipId !in activeIds
-                        TurnRow(
-                            turnNumber = turn.turnNumber,
-                            name = if (turn.isMe) "${turn.displayName} (tú)" else turn.displayName,
-                            cutoffDate = turn.cutoffDate,
-                            highlighted = turn.isMe,
-                            subtitle = if (dropped) "Dejó la junta · falta un reemplazo" else null,
-                            trailing = {
-                                if (dropped) StatusChip("Desertó", colors.errorContainer, colors.onErrorContainer)
-                            },
-                            modifier = Modifier.clickable {
-                                when {
-                                    dropped && group.isOrganizer && group.status == GroupStatus.STARTED -> onReplace(turn)
-                                    !dropped -> onOpenMember(turn.membershipId)
-                                }
-                            },
-                        )
-                    }
-                    if (canEdit) {
-                        item {
-                            Spacer(Modifier.height(8.dp))
-                            PozzoOutlinedButton(text = "Cambiar turnos", onClick = onChangeTurns)
-                        }
+                }
+            } else {
+                val membersById = detail.members.associateBy { it.membershipId }
+                val withTurn = detail.turns.turns.map { it.membershipId }.toSet()
+                items(detail.turns.turns.filter { it.membershipId != hiddenMember }, key = { it.turnNumber }) { turn ->
+                    // A turn whose member is no longer active belongs to someone who dropped out.
+                    val dropped = group.isStarted && turn.membershipId !in activeIds
+                    TurnRow(
+                        turnNumber = turn.turnNumber,
+                        name = if (turn.isMe) "${turn.displayName} (tú)" else turn.displayName,
+                        cutoffDate = turn.cutoffDate,
+                        highlighted = turn.isMe,
+                        subtitle = if (dropped) "Dejó la junta · falta un reemplazo" else null,
+                        trailing = {
+                            if (dropped) {
+                                StatusChip("Desertó", colors.errorContainer, colors.onErrorContainer)
+                            } else {
+                                membersById[turn.membershipId]?.let { MemberKindChip(it) }
+                            }
+                        },
+                        modifier = Modifier.clickable {
+                            when {
+                                dropped && group.isOrganizer && group.status == GroupStatus.STARTED -> onReplace(turn)
+                                !dropped -> onOpenMember(turn.membershipId)
+                            }
+                        },
+                    )
+                }
+                // Anyone who joined after the turns were drawn still shows, without a turn.
+                items(
+                    detail.members.filter { it.membershipId !in withTurn && it.membershipId != hiddenMember },
+                    key = { it.membershipId },
+                ) { member ->
+                    MemberRow(member = member, onOpen = { onOpenMember(member.membershipId) })
+                }
+                if (canEdit) {
+                    item {
+                        Spacer(Modifier.height(8.dp))
+                        PozzoOutlinedButton(text = "Cambiar turnos", onClick = onChangeTurns)
                     }
                 }
             }
@@ -546,7 +556,6 @@ private fun DetailContent(
 @Composable
 private fun MemberRow(member: Member, onOpen: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    val status = PozzoThemeExtras.statusColors
     Box {
         Row(
             modifier = Modifier
@@ -570,12 +579,20 @@ private fun MemberRow(member: Member, onOpen: () -> Unit) {
                     )
                 }
             }
-            when {
-                member.isOrganizer -> StatusChip("Cabeza", colors.secondaryContainer, colors.onSecondaryContainer)
-                member.kind == MembershipKind.APP -> StatusChip("Usa Pozzo", colors.surfaceContainerHighest, colors.onSurfaceVariant)
-                else -> StatusChip("Sin la app", status.warningContainer, status.onWarningContainer)
-            }
+            MemberKindChip(member)
         }
+    }
+}
+
+/** Whether the member organizes the group, uses Pozzo or is registered by the organizer without the app. */
+@Composable
+private fun MemberKindChip(member: Member) {
+    val colors = MaterialTheme.colorScheme
+    val status = PozzoThemeExtras.statusColors
+    when {
+        member.isOrganizer -> StatusChip("Cabeza", colors.secondaryContainer, colors.onSecondaryContainer)
+        member.kind == MembershipKind.APP -> StatusChip("Usa Pozzo", colors.surfaceContainerHighest, colors.onSurfaceVariant)
+        else -> StatusChip("Sin la app", status.warningContainer, status.onWarningContainer)
     }
 }
 
