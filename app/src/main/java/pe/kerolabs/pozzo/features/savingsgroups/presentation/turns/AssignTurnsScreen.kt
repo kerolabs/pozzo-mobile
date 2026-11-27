@@ -25,6 +25,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,10 +37,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoPrimaryButton
 import pe.kerolabs.pozzo.core.designsystem.components.PozzoTopBar
 import pe.kerolabs.pozzo.core.designsystem.components.StatusChip
+import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupPlan
 import pe.kerolabs.pozzo.features.savingsgroups.domain.TurnMethod
+import pe.kerolabs.pozzo.features.savingsgroups.presentation.common.PaidPlanDialog
 
 /**
  * E3: how the collection order is decided: a draw, the order the group agreed, or an auction per period.
@@ -51,8 +56,27 @@ fun AssignTurnsScreen(
     onDraw: () -> Unit,
     onAgreedOrder: () -> Unit,
     onAuction: () -> Unit,
+    viewModel: AssignTurnsViewModel = hiltViewModel(),
 ) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
     var method by rememberSaveable { mutableStateOf(TurnMethod.DRAW) }
+    var askingPlan by rememberSaveable { mutableStateOf(false) }
+    val auctionLocked = state.plan == GroupPlan.FREE
+    LaunchedEffect(state.activated) {
+        if (state.activated) {
+            askingPlan = false
+            viewModel.onActivatedHandled()
+            onAuction()
+        }
+    }
+    if (askingPlan) {
+        PaidPlanDialog(
+            reason = "La subasta de turnos es parte del plan de pago. Esta junta está en el plan gratuito.",
+            activating = state.isActivating,
+            onConfirm = viewModel::activate,
+            onDismiss = { askingPlan = false },
+        )
+    }
     Scaffold(topBar = { PozzoTopBar(title = "Asignar turnos", onBack = onBack) }) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 8.dp),
@@ -84,7 +108,11 @@ fun AssignTurnsScreen(
                 description = "Cada turno se asigna a quien ofrece el mayor descuento sobre el pozo.",
                 selected = method == TurnMethod.AUCTION,
                 onSelect = { method = TurnMethod.AUCTION },
+                badge = if (auctionLocked) "Plan de pago" else null,
             )
+            state.errorMessage?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            }
             Spacer(Modifier.weight(1f))
             PozzoPrimaryButton(
                 text = "Continuar",
@@ -92,7 +120,7 @@ fun AssignTurnsScreen(
                     when (method) {
                         TurnMethod.DRAW -> onDraw()
                         TurnMethod.AGREED -> onAgreedOrder()
-                        TurnMethod.AUCTION -> onAuction()
+                        TurnMethod.AUCTION -> if (auctionLocked) askingPlan = true else onAuction()
                     }
                 },
             )
@@ -109,6 +137,7 @@ private fun MethodCard(
     selected: Boolean,
     onSelect: () -> Unit,
     enabled: Boolean = true,
+    badge: String? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     Row(
@@ -141,6 +170,10 @@ private fun MethodCard(
                 if (!enabled) {
                     Spacer(Modifier.width(8.dp))
                     StatusChip("Próximamente", colors.surfaceContainerHighest, colors.onSurfaceVariant)
+                }
+                badge?.let {
+                    Spacer(Modifier.width(8.dp))
+                    StatusChip(it, colors.secondaryContainer, colors.onSecondaryContainer)
                 }
             }
             Text(description, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)

@@ -11,6 +11,7 @@ import pe.kerolabs.pozzo.core.network.apiCall
 import pe.kerolabs.pozzo.features.savingsgroups.domain.AuctionRules
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Destination
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupPreview
+import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupPlan
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupRole
 import pe.kerolabs.pozzo.features.savingsgroups.domain.GroupStatus
 import pe.kerolabs.pozzo.features.savingsgroups.domain.Invitation
@@ -75,6 +76,7 @@ class SavingsGroupRepositoryImpl @Inject constructor(
                     seats = group.seats,
                     firstContributionDate = group.firstContributionDate.toString(),
                     destination = group.destination?.let { DestinationDto(it.method.name, it.phoneNumber) },
+                    plan = group.plan.name,
                 ),
             )
         }.map { dto -> saveLocally(dto) }
@@ -180,6 +182,9 @@ class SavingsGroupRepositoryImpl @Inject constructor(
         apiCall { service.openNewCycle(groupId, OpenNewCycleRequestDto(firstContributionDate.toString())) }
             .map { dto -> saveLocally(dto) }
 
+    override suspend fun activatePaidPlan(groupId: String): Result<SavingsGroup> =
+        apiCall { service.activatePaidPlan(groupId) }.map { dto -> saveLocally(dto) }
+
     /** A group created, joined or read appears in the list right away, without waiting for a refresh. */
     private suspend fun saveLocally(dto: GroupDto): SavingsGroup {
         val entity = dto.toEntity()
@@ -213,6 +218,7 @@ class SavingsGroupRepositoryImpl @Inject constructor(
         id = id,
         name = name,
         status = status,
+        plan = plan ?: GroupPlan.PAID.name,
         role = role,
         organizerName = organizerName,
         contributionAmount = rules.contributionAmount.toPlainString(),
@@ -237,6 +243,7 @@ class SavingsGroupRepositoryImpl @Inject constructor(
         id = id,
         name = name,
         status = GroupStatus.valueOf(status),
+        plan = GroupPlan.valueOf(plan),
         role = GroupRole.valueOf(role),
         organizerName = organizerName,
         contributionAmount = BigDecimal(contributionAmount),

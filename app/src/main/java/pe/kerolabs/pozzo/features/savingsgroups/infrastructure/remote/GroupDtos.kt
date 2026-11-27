@@ -6,6 +6,8 @@ data class GroupDto(
     val id: String,
     val name: String,
     val status: String,
+    /** Null only from a backend older than the plans, whose groups keep everything: they read as paid. */
+    val plan: String?,
     val role: String,
     val organizerName: String,
     val rules: RulesDto,
@@ -47,6 +49,7 @@ data class CreateGroupRequestDto(
     val seats: Int,
     val firstContributionDate: String,
     val destination: DestinationDto?,
+    val plan: String,
 )
 
 data class MemberDto(
