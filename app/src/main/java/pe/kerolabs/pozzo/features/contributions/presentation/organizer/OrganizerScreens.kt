@@ -370,7 +370,7 @@ fun CashScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: CashViewModel 
                 confirmButton = {
                     TextButton(onClick = {
                         confirmingAmount = false
-                        viewModel.register()
+                        viewModel.register(differenceConfirmed = true)
                     }) { Text("Registrar igual") }
                 },
                 dismissButton = { TextButton(onClick = { confirmingAmount = false }) { Text("Corregir monto") } },
