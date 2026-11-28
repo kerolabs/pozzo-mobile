@@ -88,6 +88,11 @@ android {
         buildConfig = true
         resValues = true
     }
+    // The unit tests run the view models on the JVM, where the Android classes they only pass along
+    // (a Context, a Uri) are stubs: they return default values instead of failing.
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
@@ -133,6 +138,8 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockito.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
