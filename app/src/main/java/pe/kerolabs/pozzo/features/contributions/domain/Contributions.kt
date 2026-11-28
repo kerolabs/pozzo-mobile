@@ -166,7 +166,14 @@ interface ContributionRepository {
 
     suspend fun registerContribution(periodId: String, receipt: ReceiptData): Result<Contribution>
 
-    suspend fun registerCash(periodId: String, membershipId: String, amount: BigDecimal, receivedOn: LocalDate): Result<Contribution>
+    /** Registers cash; [differenceConfirmed] says the organizer confirmed an amount other than what is owed. */
+    suspend fun registerCash(
+        periodId: String,
+        membershipId: String,
+        amount: BigDecimal,
+        receivedOn: LocalDate,
+        differenceConfirmed: Boolean = false,
+    ): Result<Contribution>
 
     suspend fun registerCoverage(periodId: String, membershipId: String, coveredByMembershipId: String): Result<Contribution>
 

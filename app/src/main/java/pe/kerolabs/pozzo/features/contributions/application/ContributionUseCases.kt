@@ -78,8 +78,13 @@ class RegisterContributionUseCase @Inject constructor(private val repository: Co
 }
 
 class RegisterCashUseCase @Inject constructor(private val repository: ContributionRepository) {
-    suspend operator fun invoke(periodId: String, membershipId: String, amount: BigDecimal, receivedOn: LocalDate) =
-        repository.registerCash(periodId, membershipId, amount, receivedOn)
+    suspend operator fun invoke(
+        periodId: String,
+        membershipId: String,
+        amount: BigDecimal,
+        receivedOn: LocalDate,
+        differenceConfirmed: Boolean = false,
+    ) = repository.registerCash(periodId, membershipId, amount, receivedOn, differenceConfirmed)
 }
 
 class RegisterCoverageUseCase @Inject constructor(private val repository: ContributionRepository) {

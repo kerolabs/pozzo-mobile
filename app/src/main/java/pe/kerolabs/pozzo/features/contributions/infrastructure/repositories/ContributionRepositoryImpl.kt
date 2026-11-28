@@ -128,8 +128,14 @@ class ContributionRepositoryImpl @Inject constructor(
         membershipId: String,
         amount: BigDecimal,
         receivedOn: LocalDate,
+        differenceConfirmed: Boolean,
     ): Result<Contribution> =
-        apiCall { service.registerCash(periodId, RegisterCashRequestDto(membershipId, amount, receivedOn.toString())) }
+        apiCall {
+            service.registerCash(
+                periodId,
+                RegisterCashRequestDto(membershipId, amount, receivedOn.toString(), differenceConfirmed),
+            )
+        }
             .map { it.toDomain() }
 
     override suspend fun registerCoverage(periodId: String, membershipId: String, coveredByMembershipId: String): Result<Contribution> =
