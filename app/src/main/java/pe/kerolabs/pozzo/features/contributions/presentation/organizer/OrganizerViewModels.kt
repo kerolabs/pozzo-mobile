@@ -218,10 +218,11 @@ class CashViewModel @Inject constructor(
     private val registerCash: RegisterCashUseCase,
 ) : SettleViewModel(savedStateHandle.toRoute<CashRoute>().groupId, getPotState) {
 
-    fun register() = save { state, period ->
+    /** [differenceConfirmed] is true once the organizer confirmed an amount other than what the member owes. */
+    fun register(differenceConfirmed: Boolean = false) = save { state, period ->
         val member = state.selectedMember ?: return@save Result.failure(IllegalStateException("Elige a quién recibiste el aporte."))
         val amount = state.amountValue ?: return@save Result.failure(IllegalStateException("Ingresa el monto recibido."))
-        registerCash(period.id, member, amount, state.receivedOn)
+        registerCash(period.id, member, amount, state.receivedOn, differenceConfirmed)
     }
 }
 

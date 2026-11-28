@@ -1,0 +1,37 @@
+name: Tests
+
+# Runs the unit tests of the app on every pull request and on every push to develop and main. They run on
+# the JVM, with the services replaced by repositories in memory, so they need no device and no network.
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run the unit tests
+        run: ./gradlew :app:testCloudDebugUnitTest
+
+      # The JUnit results, to read a failure without running it again.
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            app/build/reports/tests/testCloudDebugUnitTest/
+            app/build/test-results/testCloudDebugUnitTest/
+          retention-days: 14

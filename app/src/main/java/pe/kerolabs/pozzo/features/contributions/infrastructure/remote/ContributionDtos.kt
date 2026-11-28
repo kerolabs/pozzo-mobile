@@ -107,7 +107,12 @@ data class MyPeriodContributionDto(
     val contribution: ContributionDto?,
 )
 
-data class RegisterCashRequestDto(val membershipId: String, val amount: BigDecimal, val receivedOn: String)
+data class RegisterCashRequestDto(
+    val membershipId: String,
+    val amount: BigDecimal,
+    val receivedOn: String,
+    val differenceConfirmed: Boolean = false,
+)
 
 data class RegisterCoverageRequestDto(val membershipId: String, val coveredByMembershipId: String)
 
